@@ -27,13 +27,38 @@ defimpl ZStick.Logger, for: Any do
   end
 end
 
+defmodule ZStick.Constants do
+  defmacro __using__(_) do
+    quote do
+      @func_id_zw_get_version 0x15
+      @func_id_zw_memory_get_id 0x20
+      @func_id_zw_get_controller_capabilities 0x05
+      @func_id_serial_api_get_capabilities 0x07
+      @func_id_zw_get_suc_node_id 0x56
+
+      @func_id_zw_get_random 0x1c
+      @func_id_zw_get_controller_capabilities 0x05
+
+      @request 0x00
+      @response 0x01
+
+      @sof 0x01
+      @ack 0x06
+      @nak 0x15
+      @can 0x18
+    end
+  end
+end
+
 defmodule ZStick do
   use GenServer
+
+  use ZStick.Constants
 
   defmodule Msg do
     defstruct [:type, :function, :data]
 
-    @sof 0x01
+    use ZStick.Constants
 
     def prepare(msg = %Msg{type: type, function: function, data: data}) do
       msg
@@ -71,20 +96,31 @@ defmodule ZStick do
 
   defmodule Resp do
     defstruct [:bytes]
+
+    use ZStick.Constants
+
+    def process(%Resp{bytes: bytes}), do: process(bytes)
+    def process(<<1, rest::binary>>) do
+      rest
+      |> extract_message
+      |> interpret_message
+    end
+    def process(msg), do: :error
+
+    defp extract_message(<<len, rest::binary>>) do
+      len = len - 3
+      <<message::binary-size(len), _::binary>> = rest
+      message
+    end
+
+    defp interpret_message(<<@response, @func_id_zw_get_version, version_string::binary>>), do: version_string
+    defp interpret_message(msg), do: msg |> IO.inspect
+
+    defp interpret_result(<<0x15>>), do: "NAK"
+    defp interpret_result(<<0x06>>), do: "ACK"
+    defp interpret_result(<<0x18>>), do: "CAN"
+    defp interpret_result(res), do: res
   end
-
-  @request 0x00
-  @response 0x01
-
-  @func_id_zw_get_version 0x15
-  @func_id_zw_memory_get_id 0x20
-  @func_id_zw_get_controller_capabilities 0x05
-  @func_id_serial_api_get_capabilities 0x07
-  @func_id_zw_get_suc_node_id 0x56
-
-  @func_id_zw_get_random 0x1c
-  @func_id_zw_get_controller_capabilities 0x05
-  @set_parameter 0xf2
 
   def start_link do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -99,38 +135,27 @@ defmodule ZStick do
   end
 
   def handle_call(:hello, _ref, pid) do
-    # %Msg{type: @request, function: @func_id_zw_get_version}
-    # |> send_msg(pid)
-
-    # %Msg{type: @request, function: @func_id_zw_get_version}
-    # |> send_msg(pid)
-    <<0x15>> |> send_msg(pid)
+    <<@nak>> |> send_msg(pid)
 
     %Msg{type: @request, function: @func_id_zw_get_version} |> send_msg(pid)
     %Msg{type: @request, function: @func_id_zw_memory_get_id} |> send_msg(pid)
     %Msg{type: @request, function: @func_id_zw_get_controller_capabilities} |> send_msg(pid)
     %Msg{type: @request, function: @func_id_serial_api_get_capabilities} |> send_msg(pid)
     %Msg{type: @request, function: @func_id_zw_get_suc_node_id} |> send_msg(pid)
-    #
-    #
-    # write([0x15], pid)
-    # read(pid) |> IO.inspect
-    # write(add_checksum([0x01, 0x04, 0x51, 0x01, 0x01]) |> IO.inspect, pid)
 
     {:reply, nil, pid}
   end
-
-  defp interpret_result(<<0x15>>), do: "NAK"
-  defp interpret_result(<<0x06>>), do: "ACK"
-  defp interpret_result(<<0x18>>), do: "CAN"
-  defp interpret_result(res), do: res
 
   defp send_msg(msg, pid) do
     msg
     |> ZStick.Logger.log
     |> Msg.prepare
     |> write(pid)
-    read(pid) |> ZStick.Logger.log
+
+    read(pid)
+    |> ZStick.Logger.log
+    |> ZStick.Resp.process
+    |> IO.inspect
   end
 
   defp write(msg, pid) do
@@ -138,7 +163,10 @@ defmodule ZStick do
   end
 
   defp read(pid) do
-    {:ok, out} = Nerves.UART.read(pid, 4000)
-    %Resp{bytes: out}
+    {:ok, out} = Nerves.UART.read(pid, 100)
+    {:ok, out2} = Nerves.UART.read(pid, 100)
+    {:ok, out3} = Nerves.UART.read(pid, 100)
+    {:ok, out4} = Nerves.UART.read(pid, 100)
+    %Resp{bytes: out <> out2 <> out3 <> out4}
   end
 end
