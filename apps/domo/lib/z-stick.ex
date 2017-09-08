@@ -1,55 +1,3 @@
-defprotocol ZStick.Logger do
-  @fallback_to_any true
-  def log(data)
-end
-
-defimpl ZStick.Logger, for: ZStick.Msg do
-  require Logger
-  def log(msg) do
-    "Sending message: #{msg |> inspect}" |> Logger.debug
-    msg
-  end
-end
-
-defimpl ZStick.Logger, for: ZStick.Resp do
-  require Logger
-  def log(resp) do
-    "Received: #{resp.bytes |> inspect}" |> Logger.debug
-    resp
-  end
-end
-
-defimpl ZStick.Logger, for: Any do
-  require Logger
-  def log(any) do
-    Logger.debug(any)
-    any
-  end
-end
-
-defmodule ZStick.Constants do
-  defmacro __using__(_) do
-    quote do
-      @func_id_zw_get_version 0x15
-      @func_id_zw_memory_get_id 0x20
-      @func_id_zw_get_controller_capabilities 0x05
-      @func_id_serial_api_get_capabilities 0x07
-      @func_id_zw_get_suc_node_id 0x56
-
-      @func_id_zw_get_random 0x1c
-      @func_id_zw_get_controller_capabilities 0x05
-
-      @request 0x00
-      @response 0x01
-
-      @sof 0x01
-      @ack 0x06
-      @nak 0x15
-      @can 0x18
-    end
-  end
-end
-
 defmodule ZStick.Msg do
   defstruct [:type, :function, :data]
 
@@ -95,7 +43,11 @@ defmodule ZStick.Resp do
   use ZStick.Constants
 
   def process(%ZStick.Resp{bytes: bytes}), do: process(bytes)
-  def process(<<1, rest::binary>>) do
+  def process(<<@ack, rest::binary>>) do
+    IO.inspect("GOT ACK")
+    process(rest)
+  end
+  def process(<<@sof, rest::binary>>) do
     rest
     |> extract_message
     |> interpret_message
@@ -104,11 +56,28 @@ defmodule ZStick.Resp do
 
   defp extract_message(<<len, rest::binary>>) do
     len = len - 3
-    <<message::binary-size(len), _::binary>> = rest
+    require Logger
+    Logger.debug("extracting #{len} elements from #{rest |> inspect}")
+    <<message::binary-size(len), real_rest::binary>> = rest
+    process_message(message)
+    process(real_rest)
+  end
+  # defp extract_message(<<len, rest::binary>>) do
+  #   len = len - 3
+  #   <<message::binary-size(len), _::binary>> = rest
+  #   message
+  # end
+
+  require Logger
+  defp process_message(message) do
     message
+    |> interpret_message
+    |> Logger.debug
   end
 
   defp interpret_message(<<@response, @func_id_zw_get_version, version_string::binary>>), do: version_string
+  defp interpret_message(<<@response, @func_id_zw_memory_get_id, rest::binary>>), do: {:zw_memory_get_id, rest}
+  # defp interpret_message(<<@response, @func_id_zw_memory_get_id, home_id::binary-size(4), controller_node_id::binary-size(1)>>), do: {home_id, controller_node_id}
   defp interpret_message(msg), do: msg |> IO.inspect
 
   defp interpret_result(<<0x15>>), do: "NAK"
@@ -122,19 +91,53 @@ defmodule ZStick do
 
   use ZStick.Constants
 
+  defmodule State, do: defstruct [:zstick_pid, :command_queue, :waiting_for_ack]
+
   def start_link do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def hello, do: GenServer.call(__MODULE__, :hello, 10000)
-
-  def init(state) do
-    {:ok, pid} = Nerves.UART.start_link
-    Nerves.UART.open(pid, "/dev/cu.usbmodem1411", speed: 115200, active: false)
-    {:ok, pid}
+  def message_from_zstick(message) do
+    GenServer.cast(__MODULE__, :message_from_zstick, message)
   end
 
-  def handle_call(:hello, _ref, pid) do
+  def test, do: GenServer.call(__MODULE__, :test, 10000)
+  def read, do: GenServer.call(__MODULE__, :read, 10000)
+
+  def init(state) do
+    {:ok, zstick_pid} = ZStick.UART.connect
+    {:ok, reader_pid} = ZStick.Reader.start_link(zstick_pid)
+    do_init_sequence(zstick_pid)
+    {:ok, %State{zstick_pid: zstick_pid, command_queue: [], waiting_for_ack: false}}
+  end
+
+  def handle_call(:test, _ref, pid) do
+    do_init_sequence(pid)
+    %ZStick.Msg{type: @request, function: @func_id_zw_set_learn_mode} |> send_msg(pid)
+    {:noreply, pid}
+  end
+
+  def handle_call(:read, _ref, pid) do
+    # read(pid)
+    # |> ZStick.Logger.log
+    # |> ZStick.Resp.process
+    # |> IO.inspect
+    {:noreply, pid}
+  end
+
+  def handle_cast({:message_from_zstick, :sendnak}, pid) do
+    require Logger
+    Logger.debug "RECEIVED #{:sendnak} |> sending NAK"
+    <<@nak>> |> send_msg(pid)
+    {:noreply, pid}
+  end
+  def handle_cast({:message_from_zstick, message}, pid) do
+    require Logger
+    Logger.debug "RECEIVED #{message}"
+    {:noreply, pid}
+  end
+
+  def do_init_sequence(pid) do
     <<@nak>> |> send_msg(pid)
 
     %ZStick.Msg{type: @request, function: @func_id_zw_get_version} |> send_msg(pid)
@@ -142,8 +145,6 @@ defmodule ZStick do
     %ZStick.Msg{type: @request, function: @func_id_zw_get_controller_capabilities} |> send_msg(pid)
     %ZStick.Msg{type: @request, function: @func_id_serial_api_get_capabilities} |> send_msg(pid)
     %ZStick.Msg{type: @request, function: @func_id_zw_get_suc_node_id} |> send_msg(pid)
-
-    {:reply, nil, pid}
   end
 
   defp send_msg(msg, pid) do
@@ -152,21 +153,98 @@ defmodule ZStick do
     |> ZStick.Msg.prepare
     |> write(pid)
 
-    read(pid)
-    |> ZStick.Logger.log
-    |> ZStick.Resp.process
-    |> IO.inspect
+    # read(pid)
+    # |> ZStick.Logger.log
+    # |> ZStick.Resp.process
+    # |> IO.inspect
   end
 
   defp write(msg, pid) do
     Nerves.UART.write(pid, msg)
   end
 
-  defp read(pid) do
-    {:ok, out} = Nerves.UART.read(pid, 100)
-    {:ok, out2} = Nerves.UART.read(pid, 100)
-    {:ok, out3} = Nerves.UART.read(pid, 100)
-    {:ok, out4} = Nerves.UART.read(pid, 100)
-    %ZStick.Resp{bytes: out <> out2 <> out3 <> out4}
+  defp read(pid, out\\"") do
+    # case Nerves.UART.read(pid, 50) do
+    #   {:ok, ""} -> %ZStick.Resp{bytes: out}
+    #   {:ok, just_read} -> read(pid, out <> just_read)
+    # end
+  end
+end
+
+defmodule ZStick.Reader do
+  use ZStick.Constants
+
+  def start_link(zstick_pid) do
+    reader_pid = spawn_link fn -> ZStick.Reader.init(zstick_pid) end
+    {:ok, reader_pid}
+  end
+
+  def init(zstick_pid) do
+    require Logger
+    Logger.debug "INIT READER"
+    read(zstick_pid)
+  end
+
+  def read(zstick_pid, msg_buffer\\<<>>)
+  def read(zstick_pid, msg_buffer) do
+    require Logger
+    # Logger.debug "READING BYTES"
+    {:ok, bytes} = ZStick.UART.read(zstick_pid)
+    # Logger.debug "READ #{bytes}"
+    {msg_buffer, messages} = process_bytes(bytes, msg_buffer)
+    send_messages(messages |> Enum.reverse)
+    read(zstick_pid, msg_buffer)
+  end
+
+  def send_messages([]), do: nil
+  def send_messages([msg | rest]) do
+    GenServer.cast(ZStick, {:message_from_zstick, msg})
+    send_messages(rest)
+  end
+
+  def process_bytes(bytes, buff\\<<>>, msgs\\[])
+
+  def process_bytes(<<>>, buff, msgs), do: {buff, msgs}
+
+  def process_bytes(<<byte::binary-size(1), bytes::binary>>, buff, msgs) do
+    require Logger
+    case process_byte(byte, buff) do
+      {buff, nil} -> process_bytes(bytes, buff, msgs)
+      {buff, msg} -> process_bytes(bytes, buff, [msg | msgs])
+    end
+  end
+
+  def process_byte(<<@sof>>, <<>>) do
+    {<<@sof>>, nil}
+  end
+  def process_byte(<<length>>, <<@sof>>) do
+    {<<@sof, length>>, nil}
+  end
+  def process_byte(byte, buff = <<@sof, length, bytes::binary>>) do
+    if length == (bytes <> byte) |> byte_size() do
+      msg = buff <> byte
+      if check_checksum(msg) do
+        {<<>>, buff <> byte}
+      else
+        {<<>>, :sendnak}
+      end
+    else
+      {buff <> byte, nil}
+    end
+  end
+
+  def process_byte(<<@nak>>, <<>>), do: {<<>>, <<@nak>>}
+  def process_byte(<<@ack>>, <<>>), do: {<<>>, <<@ack>>}
+  def process_byte(<<>>, <<>>), do: {<<>>, nil}
+  def process_byte(_, _), do: {<<>>, :sendnak} # all other scenarios are unexpected so send NAK back to ZStick
+
+  def check_checksum(<<_sof, bytes::binary>>), do: check_checksum(bytes, 0xff)
+  def check_checksum(<<byte>>, checksum) do
+    IO.inspect("checksum: #{checksum |> inspect}, byte: #{byte |> inspect}")
+    checksum == byte
+  end
+  def check_checksum(<<byte, rest::binary>>, checksum) do
+    use Bitwise
+    check_checksum(rest, checksum ^^^ byte)
   end
 end
