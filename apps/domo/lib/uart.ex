@@ -5,7 +5,7 @@ defmodule ZStick.UART do
     {:ok, pid}
   end
 
-  def read(pid, timeout\\1000) do
-    Nerves.UART.read(pid, timeout)
-  end
+  def read(pid, timeout\\1000), do: Nerves.UART.read(pid, timeout)
+
+  def write(msg, pid), do: Nerves.UART.write(pid, msg)
 end
