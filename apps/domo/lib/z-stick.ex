@@ -32,33 +32,33 @@ defmodule ZStick do
     {:reply, :ok, %State{state | command_queue: :queue.in(command, state.command_queue)}}
   end
 
-  @tick_interval 200
+  @tick_interval 10
   def noop_tick(state) do
     Process.send_after(self(), :tick, @tick_interval)
     {:noreply, state}
   end
 
+  def exec_command(state = %State{current_command: nil}), do: state
+  def exec_command(state) do
+    send_msg(state.current_command, state.zstick_pid)
+
+    if(ZStick.Msg.required_response?(state.current_command, nil)) do
+      state = %State{state | current_command: nil}
+    else
+      state
+    end
+  end
+
   def handle_info(:tick, state = %State{command_queue: {[], []}, current_command: nil}), do: noop_tick(state)
+  def handle_info(:tick, state = %State{current_command: current_command}) when not is_nil(current_command), do: noop_tick(state)
   def handle_info(:tick, state = %State{current_command: nil}) do
-    state = pop_command(state)
-
-
-    state =
-      if state.current_command do
-        send_msg(state.current_command, state.zstick_pid)
-        if(ZStick.Msg.required_response?(state.current_command, nil)) do
-          state = %State{state | current_command: nil}
-        else
-          state
-        end
-      else
-        state
-      end
+    new_state = state
+            |> pop_command
+            |> exec_command
 
     Process.send_after(self(), :tick, @tick_interval)
-    {:noreply, state}
+    {:noreply, new_state}
   end
-  def handle_info(:tick, state), do: noop_tick(state)
 
   def add_command(state, command), do: %State{state | command_queue: :queue.in(command, state.command_queue)}
 

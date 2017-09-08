@@ -12,11 +12,13 @@ defmodule ZStick.Reader do
     read(zstick_pid)
   end
 
+  @read_wait 10 #ms
+
   def read(zstick_pid, msg_buffer\\<<>>)
   def read(zstick_pid, msg_buffer) do
     require Logger
     # Logger.debug "READING BYTES"
-    {:ok, bytes} = ZStick.UART.read(zstick_pid)
+    {:ok, bytes} = ZStick.UART.read(zstick_pid, @read_wait)
     # Logger.debug "READ #{bytes}"
     {msg_buffer, messages} = process_bytes(bytes, msg_buffer)
     send_messages(messages |> Enum.reverse)
