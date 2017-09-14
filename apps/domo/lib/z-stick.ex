@@ -7,6 +7,7 @@ defmodule ZStick do
     :zstick_pid,
     :command_queue,
     :current_command,
+    :controller_node_id,
   ]
 
   def start_link do
@@ -26,10 +27,10 @@ defmodule ZStick do
     {:ok, do_init_sequence(state)}
   end
 
-  def queue_command(command), do: GenServer.call(__MODULE__, {:queue_command, command})
+  def queue_command(command), do: GenServer.cast(__MODULE__, {:queue_command, command})
 
-  def handle_call({:queue_command, command}, _from, state) do
-    {:reply, :ok, %State{state | command_queue: :queue.in(command, state.command_queue)}}
+  def handle_cast({:queue_command, command}, state) do
+    {:noreply, %State{state | command_queue: :queue.in(command, state.command_queue)}}
   end
 
   @tick_interval 10
@@ -90,8 +91,12 @@ defmodule ZStick do
     require Logger
     Logger.debug "RECEIVED #{message |> inspect}"
     if message != <<@ack>> do
+      Logger.debug("SENDING ACK")
       send_msg(<<@ack>>, state.zstick_pid)
     end
+
+    state = process_message(message, state)
+
     if ZStick.Msg.required_response?(state.current_command, message) do
       {:noreply, %State{state | current_command: nil}}
     else
@@ -114,5 +119,50 @@ defmodule ZStick do
     |> ZStick.Logger.log
     |> ZStick.Msg.prepare
     |> ZStick.UART.write(pid)
+  end
+
+  def scan(node\\0)
+  def scan(0xff), do: nil
+  def scan(node) do
+    %ZStick.Msg{type: @request, function: @func_id_zw_request_node_info, data: [node]}
+    |> queue_command
+    scan(node+1)
+  end
+
+  def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, api_version::size(16), manufacturer_id::size(16), product_type::size(16), product_id::size(16), api_bitmask::size(256), _checksum>>, state) do
+    state
+  end
+  def process_message(<<@sof, _length, @response, @func_id_serial_api_get_init_data, init_version::size(8), init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(232), _checksum>>, state) do
+    state
+  end
+  def process_message(<<@sof, _length, @response, @func_id_zw_memory_get_id, controller_node_id::size(40), _checksum>>, state) do
+    %State{state | controller_node_id: controller_node_id}
+  end
+  def process_message(<<@ack>>, state) do
+    require Logger
+    Logger.debug "ACK received"
+    state
+  end
+  def process_message(<<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>, state) do
+    require Logger
+    Logger.debug "SUC Node id successfully set"
+    state
+  end
+  def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>, state) do
+    %ZStick.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]}
+    |> ZStick.queue_command
+    %ZStick.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id]}
+    |> ZStick.queue_command
+    require Logger
+    Logger.debug "Setting ourselves as SIS"
+    state
+  end
+  def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, suc_node_id, _checksum>>, state) do
+    state
+  end
+  def process_message(message, state) do
+    require Logger
+    Logger.debug "Unknown message: #{message |> inspect}"
+    state
   end
 end

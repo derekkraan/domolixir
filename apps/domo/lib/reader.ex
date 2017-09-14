@@ -35,37 +35,37 @@ defmodule ZStick.Reader do
 
   def process_bytes(<<>>, buff, msgs), do: {buff, msgs}
 
-  def process_bytes(<<byte::binary-size(1), bytes::binary>>, buff, msgs) do
+  def process_bytes(<<byte, bytes::binary>>, buff, msgs) do
     require Logger
     case process_byte(byte, buff) do
-      {buff, nil} -> process_bytes(bytes, buff, msgs)
+      {buff} -> process_bytes(bytes, buff, msgs)
       {buff, msg} -> process_bytes(bytes, buff, [msg | msgs])
     end
   end
 
-  def process_byte(<<@sof>>, <<>>) do
-    {<<@sof>>, nil}
+  def process_byte(@sof, <<>>) do
+    {<<@sof>>}
   end
-  def process_byte(<<length>>, <<@sof>>) do
-    {<<@sof, length>>, nil}
+  def process_byte(length, <<@sof>>) do
+    {<<@sof, length>>}
   end
   def process_byte(byte, buff = <<@sof, length, bytes::binary>>) do
-    if length == (bytes <> byte) |> byte_size() do
-      msg = buff <> byte
+    if length == (bytes <> <<byte>>) |> byte_size() do
+      msg = buff <> <<byte>>
       if check_checksum(msg) do
-        {<<>>, buff <> byte}
+        {<<>>, buff <> <<byte>>}
       else
         {<<>>, :sendnak}
       end
     else
-      {buff <> byte, nil}
+      {buff <> <<byte>>}
     end
   end
 
-  def process_byte(<<@nak>>, <<>>), do: {<<>>, <<@nak>>}
-  def process_byte(<<@ack>>, <<>>), do: {<<>>, <<@ack>>}
-  def process_byte(<<@can>>, <<>>), do: {<<>>, <<@can>>}
-  def process_byte(<<>>, <<>>), do: {<<>>, nil}
+  def process_byte(@nak, <<>>), do: {<<>>, <<@nak>>}
+  def process_byte(@ack, <<>>), do: {<<>>, <<@ack>>}
+  def process_byte(@can, <<>>), do: {<<>>, <<@can>>}
+  def process_byte(<<>>, <<>>), do: {<<>>}
   def process_byte(byte, buffer) do
     require Logger
     Logger.debug "SENDING :sendnak; byte: #{byte |> inspect}, buffer: #{buffer |> inspect}"

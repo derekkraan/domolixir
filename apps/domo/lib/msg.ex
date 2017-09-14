@@ -38,7 +38,7 @@ defmodule ZStick.Msg do
 
   def required_response?(<<@nak>>, _), do: true
   def required_response?(%ZStick.Msg{function: @func_id_zw_set_learn_mode}, <<@ack>>), do: true
-  def required_response?(%ZStick.Msg{function: function}, <<@sof, _length, @request, function, _rest::binary>>), do: true
+  def required_response?(%ZStick.Msg{function: function}, <<@sof, _length, @response, function, _rest::binary>>), do: true
 
   def required_response?(_, <<@ack>>), do: true
   def required_response?(_, <<@nak>>), do: true
