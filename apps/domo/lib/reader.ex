@@ -1,34 +1,34 @@
 defmodule ZStick.Reader do
   use ZStick.Constants
 
-  def start_link(zstick_pid) do
-    reader_pid = spawn_link fn -> ZStick.Reader.init(zstick_pid) end
+  def start_link(usb_zstick_pid, zstick_pid) do
+    reader_pid = spawn_link fn -> ZStick.Reader.init(usb_zstick_pid, zstick_pid) end
     {:ok, reader_pid}
   end
 
-  def init(zstick_pid) do
+  def init(usb_zstick_pid, zstick_pid) do
     require Logger
     Logger.debug "INIT READER"
-    read(zstick_pid)
+    read(usb_zstick_pid, zstick_pid)
   end
 
   @read_wait 10 #ms
 
-  def read(zstick_pid, msg_buffer\\<<>>)
-  def read(zstick_pid, msg_buffer) do
-    require Logger
-    # Logger.debug "READING BYTES"
-    {:ok, bytes} = ZStick.UART.read(zstick_pid, @read_wait)
-    # Logger.debug "READ #{bytes}"
+  def read(usb_zstick_pid, zstick_pid, msg_buffer\\<<>>)
+  def read(usb_zstick_pid, zstick_pid, msg_buffer) do
+    {:ok, bytes} = ZStick.UART.read(usb_zstick_pid, @read_wait)
+
     {msg_buffer, messages} = process_bytes(bytes, msg_buffer)
-    send_messages(messages |> Enum.reverse)
-    read(zstick_pid, msg_buffer)
+
+    send_messages(messages |> Enum.reverse, zstick_pid)
+
+    read(usb_zstick_pid, zstick_pid, msg_buffer)
   end
 
-  def send_messages([]), do: nil
-  def send_messages([msg | rest]) do
-    GenServer.cast(ZStick, {:message_from_zstick, msg})
-    send_messages(rest)
+  def send_messages([], _usb_zstick_pid), do: nil
+  def send_messages([msg | rest], usb_zstick_pid) do
+    GenServer.cast(usb_zstick_pid, {:message_from_zstick, msg})
+    send_messages(rest, usb_zstick_pid)
   end
 
   def process_bytes(bytes, buff\\<<>>, msgs\\[])

@@ -19,13 +19,17 @@ defmodule ZStick.Constants do
       @func_id_zw_request_network_update 0x53
 
       @func_id_serial_api_get_init_data 0x02
+      @func_id_serial_api_appl_node_information 0x03
+
+      @func_id_zw_get_node_protocol_info 0x41
 
       @request 0x00
       @response 0x01
 
       @suc_func_nodeid_server 0x01
 
-      @num_node_bitfield_bytes 29
+      @num_node_bitfield_bytes 29 # 29 = 232 / 8
+      @max_num_nodes 232
 
       @sof 0x01
       @ack 0x06
