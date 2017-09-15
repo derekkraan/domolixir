@@ -74,7 +74,6 @@ defmodule ZStick.Reader do
 
   def check_checksum(<<_sof, bytes::binary>>), do: check_checksum(bytes, 0xff)
   def check_checksum(<<byte>>, checksum) do
-    IO.inspect("checksum: #{checksum |> inspect}, byte: #{byte |> inspect}")
     checksum == byte
   end
   def check_checksum(<<byte, rest::binary>>, checksum) do
