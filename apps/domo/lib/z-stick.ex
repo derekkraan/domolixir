@@ -9,6 +9,8 @@ defmodule ZStick do
     :current_command,
     :controller_node_id,
     :node_bitfield,
+    :current_callback_id,
+    :callback_commands,
   ]
 
   def start_link do
@@ -19,7 +21,7 @@ defmodule ZStick do
     {:ok, usb_zstick_pid} = ZStick.UART.connect("/dev/cu.usbmodem1421")
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
-    state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil}
+    state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil, current_callback_id: 0, callback_commands: %{}}
 
     Process.send_after(self(), :tick, 100)
 
@@ -57,7 +59,6 @@ defmodule ZStick do
     require Logger
     Logger.debug "RECEIVED #{message |> inspect}"
     if message != <<@ack>> do
-      Logger.debug("SENDING ACK")
       send_msg(<<@ack>>, state.usb_zstick_pid)
     end
 
@@ -100,7 +101,19 @@ defmodule ZStick do
     {:noreply, state}
   end
 
-  def add_command(state, command), do: %State{state | command_queue: :queue.in(command, state.command_queue)}
+  def add_command(state, command) do
+    # {state, command} = add_callback_id(state, command)
+    %State{state | command_queue: :queue.in(command, state.command_queue)}
+  end
+
+  def add_callback_id(state, command = <<_::binary>>), do: {state, command}
+  def add_callback_id(state, command = %{data: nil}), do: {state, command}
+  def add_callback_id(state, command) do
+    {
+      %State{state | current_callback_id: (state.current_callback_id + 1), callback_commands: state.callback_commands |> Map.put(state.current_callback_id, command)},
+      %{command | callback_id: state.current_callback_id}
+    }
+  end
 
   def pop_command(state) do
     case :queue.out(state.command_queue) do
@@ -136,22 +149,33 @@ defmodule ZStick do
   def scan(node\\0)
   def scan(0xff), do: nil
   def scan(node) do
-    %ZStick.Msg{type: @request, function: @func_id_zw_request_node_info, data: [node]}
+    %ZStick.Msg{type: @request, function: @func_id_zw_request_node_info, data: [node], target_node_id: node}
     |> queue_command(self())
     scan(node+1)
   end
 
-  def request_node_states(state, node_id\\0)
-  def request_node_states(_state, @max_num_nodes), do: nil
-  def request_node_states(state, node_id) do
+  def nodes_in_bytes(bytes, offset\\0, nodes\\[])
+  def nodes_in_bytes(<<>>, _offset, nodes), do: nodes
+  def nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
+    nodes_in_bytes(bytes, offset + 8, nodes_in_byte(byte) ++ nodes)
+  end
+  def nodes_in_byte(byte, offset\\0, nodes\\[])
+  def nodes_in_byte(byte, 8, nodes), do: nodes
+  def nodes_in_byte(byte, offset, nodes) do
     use Bitwise
-    require Logger
-    if (state.node_bitfield &&& (1 <<< node_id)) > 0 do
-      Logger.debug "requesting state of node #{node_id}"
-      %ZStick.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [node_id]}
-      |> queue_command(self())
+    if (byte &&& (1 <<< offset)) != 0 do
+      nodes_in_byte(byte, offset + 1, [offset + 1 | nodes])
+    else
+      nodes_in_byte(byte, offset + 1, nodes)
     end
-    request_node_states(state, node_id + 1)
+  end
+
+  def request_node_states(state) do
+    nodes_in_bytes(<<state.node_bitfield::size(@max_num_nodes)>>)
+    |> Enum.map(fn(node_id) ->
+      %ZStick.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [node_id], target_node_id: node_id}
+      |> queue_command(self())
+    end)
   end
 
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>, state) do
@@ -160,7 +184,7 @@ defmodule ZStick do
     state
     |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_get_random})
     |> add_command(%ZStick.Msg{type: @request, function: @func_id_serial_api_get_init_data})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_serial_api_appl_node_information, data: [state.controller_node_id]})
+    |> add_command(%ZStick.Msg{type: @request, function: @func_id_serial_api_appl_node_information, data: [state.controller_node_id], target_node_id: state.controller_node_id})
   end
 
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8), _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes), _something, _else, _checksum>>, state) do
@@ -172,7 +196,9 @@ defmodule ZStick do
     state
   end
 
-  # def process_message(<<@sor, _length, @response, @func_id_zw_get_node_protocol_info, 
+  def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>, state) do
+    state
+  end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_random, random, _checksum>>, state), do: state
 
@@ -196,7 +222,7 @@ defmodule ZStick do
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>, state) do
     %ZStick.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]} |> queue_command(self())
-    %ZStick.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id]} |> queue_command(self())
+    %ZStick.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id} |> queue_command(self())
     require Logger
     Logger.debug "Setting ourselves as SIS"
     state
