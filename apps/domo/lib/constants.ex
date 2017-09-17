@@ -23,6 +23,8 @@ defmodule ZStick.Constants do
 
       @func_id_zw_get_node_protocol_info 0x41
 
+      @func_id_zw_send_data 0x13
+
       @request 0x00
       @response 0x01
 

@@ -10,7 +10,8 @@ defmodule Domo.Application do
 
     # Define workers and child supervisors to be supervised
     children = [
-      worker(Domo.Sunrise, [])
+      worker(Domo.Sunrise, []),
+      supervisor(ZStick.Nodes, ["/dev/cu.usbmodem1421", :usb1]),
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html

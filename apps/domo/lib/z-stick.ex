@@ -1,9 +1,25 @@
+defmodule ZStick.Nodes do
+  use Supervisor
+
+  def start_link(usb_device, name) do
+    Supervisor.start_link(__MODULE__, {usb_device, name}, name: ZStick.supervisor_name(name))
+  end
+
+  def init({usb_device, name}) do
+    processes = [
+      worker(ZStick, [usb_device, name]),
+    ]
+    supervise(processes, strategy: :one_for_one)
+  end
+end
+
 defmodule ZStick do
   use GenServer
 
   use ZStick.Constants
 
   defmodule State, do: defstruct [
+    :name,
     :usb_zstick_pid,
     :command_queue,
     :current_command,
@@ -13,12 +29,13 @@ defmodule ZStick do
     :callback_commands,
   ]
 
-  def start_link do
-    GenServer.start_link(__MODULE__, %State{})
+  def start_link(usb_device, name) do
+    GenServer.start_link(__MODULE__, {usb_device, name}, name: name)
   end
 
-  def init(state) do
-    {:ok, usb_zstick_pid} = ZStick.UART.connect("/dev/cu.usbmodem1421")
+  def init({usb_device, name}) do
+    state = %State{name: name}
+    {:ok, usb_zstick_pid} = ZStick.UART.connect(usb_device)
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
     state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil, current_callback_id: 0, callback_commands: %{}}
@@ -27,6 +44,8 @@ defmodule ZStick do
 
     {:ok, do_init_sequence(state)}
   end
+
+  def supervisor_name(name), do: :"#{name}_supervisor"
 
   def queue_command(command, pid), do: GenServer.cast(pid, {:queue_command, command})
 
@@ -154,30 +173,6 @@ defmodule ZStick do
     scan(node+1)
   end
 
-  def nodes_in_bytes(bytes, offset\\0, nodes\\[])
-  def nodes_in_bytes(<<>>, _offset, nodes), do: nodes
-  def nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
-    nodes_in_bytes(bytes, offset + 8, nodes_in_byte(byte) ++ nodes)
-  end
-  def nodes_in_byte(byte, offset\\0, nodes\\[])
-  def nodes_in_byte(byte, 8, nodes), do: nodes
-  def nodes_in_byte(byte, offset, nodes) do
-    use Bitwise
-    if (byte &&& (1 <<< offset)) != 0 do
-      nodes_in_byte(byte, offset + 1, [offset + 1 | nodes])
-    else
-      nodes_in_byte(byte, offset + 1, nodes)
-    end
-  end
-
-  def request_node_states(state) do
-    nodes_in_bytes(<<state.node_bitfield::size(@max_num_nodes)>>)
-    |> Enum.map(fn(node_id) ->
-      %ZStick.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [node_id], target_node_id: node_id}
-      |> queue_command(self())
-    end)
-  end
-
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>, state) do
     require Logger
     Logger.debug "GOT SERIAL API CAPABILITIES"
@@ -192,11 +187,11 @@ defmodule ZStick do
     Logger.debug "GOT SERIAL API INIT DATA"
     Logger.debug "node bitfield: #{node_bitfield |> inspect}"
     state = %State{state | node_bitfield: node_bitfield}
-    request_node_states(state)
+    ZStick.Node.set_up_nodes(state)
     state
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>, state) do
+  def process_message(msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>, state) do
     state
   end
 
