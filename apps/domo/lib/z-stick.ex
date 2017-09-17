@@ -165,14 +165,6 @@ defmodule ZStick do
     msg
   end
 
-  def scan(node\\0)
-  def scan(0xff), do: nil
-  def scan(node) do
-    %ZStick.Msg{type: @request, function: @func_id_zw_request_node_info, data: [node], target_node_id: node}
-    |> queue_command(self())
-    scan(node+1)
-  end
-
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>, state) do
     require Logger
     Logger.debug "GOT SERIAL API CAPABILITIES"
@@ -192,6 +184,7 @@ defmodule ZStick do
   end
 
   def process_message(msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>, state) do
+    Process.send(ZStick.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
 

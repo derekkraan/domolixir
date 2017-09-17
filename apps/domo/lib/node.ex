@@ -6,20 +6,24 @@ defmodule ZStick.Node do
     :alive,
     :node_id,
     :name,
+    :capabilities,
+    :basic_class,
+    :generic_class,
+    :specific_class,
   ]
 
   def start_link(name, node_id) do
     GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id))
   end
 
-  def nodes_in_bytes(bytes, offset\\0, nodes\\[])
-  def nodes_in_bytes(<<>>, _offset, nodes), do: nodes
-  def nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
+  defp nodes_in_bytes(bytes, offset\\0, nodes\\[])
+  defp nodes_in_bytes(<<>>, _offset, nodes), do: nodes
+  defp nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
     nodes_in_bytes(bytes, offset + 8, nodes_in_byte(byte) ++ nodes)
   end
-  def nodes_in_byte(byte, offset\\0, nodes\\[])
-  def nodes_in_byte(byte, 8, nodes), do: nodes
-  def nodes_in_byte(byte, offset, nodes) do
+  defp nodes_in_byte(byte, offset\\0, nodes\\[])
+  defp nodes_in_byte(byte, 8, nodes), do: nodes
+  defp nodes_in_byte(byte, offset, nodes) do
     use Bitwise
     if (byte &&& (1 <<< offset)) != 0 do
       nodes_in_byte(byte, offset + 1, [offset + 1 | nodes])
@@ -49,8 +53,33 @@ defmodule ZStick.Node do
 
   def node_name(name, node_id), do: :"#{name}_node_#{node_id}"
 
-  def request_state(state) do
+  defp request_state(state) do
     %ZStick.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [state.node_id], target_node_id: state.node_id}
     |> ZStick.queue_command(state.name)
   end
+
+  def handle_info({:message_from_zstick, message}, state) do
+    {:noreply, ZStick.Node.process_message(message, state)}
+  end
+
+  def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, 0, _rest::binary>>, state) do
+    %{state | alive: false}
+  end
+
+  def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>, state) do
+    %{state |
+      alive: true,
+      capabilities: capabilities,
+      basic_class: basic_class,
+      generic_class: generic_class,
+      specific_class: specific_class,
+    }
+  end
+
+  def basic_class(%{basic_class: 1}), do: :controller
+  def basic_class(%{basic_class: 2}), do: :static_controller
+  def basic_class(%{basic_class: 3}), do: :slave
+  def basic_class(%{basic_class: 4}), do: :routing_slave
+
+  def command_class(state), do: state # parse config/device_classes.xml to get command classes
 end
