@@ -17,6 +17,8 @@ defmodule Web.Router do
     pipe_through :browser # Use the default browser stack
 
     get "/", PageController, :index
+    post "/turn_on", PageController, :turn_on
+    post "/turn_off", PageController, :turn_off
   end
 
   # Other scopes may use custom stacks.

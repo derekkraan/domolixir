@@ -23,7 +23,7 @@ defmodule Web.Mixfile do
   def application do
     [
       mod: {Web, []},
-      extra_applications: [:logger]
+      extra_applications: [:logger, :domo]
     ]
   end
 
@@ -41,7 +41,8 @@ defmodule Web.Mixfile do
       {:phoenix_html, "~> 2.10"},
       {:phoenix_live_reload, "~> 1.0", only: :dev},
       {:gettext, "~> 0.11"},
-      {:cowboy, "~> 1.0"}
+      {:cowboy, "~> 1.0"},
+      {:domo, in_umbrella: true},
     ]
   end
 end

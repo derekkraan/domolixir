@@ -62,6 +62,36 @@ defmodule ZStick.Node do
     {:noreply, ZStick.Node.process_message(message, state)}
   end
 
+  @command_class_basic 0x20
+  @basic_set 0x01
+
+  @command_class_switch_multilevel 0x26
+  @switchmultilevelcmd_set 0x01
+  @switchmultilevelcmd_get 0x02
+  @switchmultilevelcmd_report 0x03
+  @switchmultilevelcmd_startlevelchange 0x04
+  @switchmultilevelcmd_stoplevelchange 0x05
+  @switchmultilevelcmd_supportedget 0x06
+  @switchmultilevelcmd_supportedreport 0x07
+
+  def handle_info({:set_basic, level}, state) do
+    require Logger
+    Logger.debug "SETTING LEVEL #{level |> inspect}"
+    %ZStick.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x03, @command_class_basic, @basic_set, level]} |> do_cmd(state)
+    {:noreply, state}
+  end
+
+  def handle_info({:set_level, level, duration}, state) do
+    %ZStick.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x04, @command_class_switch_multilevel, @switchmultilevelcmd_set, level, duration]} |> do_cmd(state)
+    {:noreply, state}
+  end
+
+  def do_cmd(cmd, state) do
+    require Logger
+    Logger.debug "SENDING COMMAND"
+    %ZStick.Msg{cmd | target_node_id: state.node_id} |> ZStick.queue_command(state.name)
+  end
+
   def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, 0, _rest::binary>>, state) do
     %{state | alive: false}
   end

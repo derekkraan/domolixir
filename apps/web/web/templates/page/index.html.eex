@@ -18,6 +18,13 @@
       </li>
     </ul>
   </div>
+  <%= form_tag("/turn_on", method: :post) do %>
+    <button>TURN ON</button>
+  <% end %>
+
+  <%= form_tag("/turn_off", method: :post) do %>
+    <button>TURN OFF</button>
+  <% end %>
 
   <div class="col-lg-6">
     <h4>Help</h4>

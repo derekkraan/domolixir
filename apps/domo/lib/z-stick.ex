@@ -122,6 +122,8 @@ defmodule ZStick do
 
   def add_command(state, command) do
     # {state, command} = add_callback_id(state, command)
+    require Logger
+    Logger.debug "ADDING COMMAND"
     %State{state | command_queue: :queue.in(command, state.command_queue)}
   end
 

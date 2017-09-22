@@ -64,7 +64,6 @@ defmodule Fw.Mixfile do
     [
       {:nerves, "~> 0.7", runtime: false},
       {:web, in_umbrella: true},
-      {:domo, in_umbrella: true},
     ] ++
     deps(@target)
   end
