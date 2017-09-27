@@ -110,6 +110,4 @@ defmodule ZStick.Node do
   def basic_class(%{basic_class: 2}), do: :static_controller
   def basic_class(%{basic_class: 3}), do: :slave
   def basic_class(%{basic_class: 4}), do: :routing_slave
-
-  def command_class(state), do: state # parse config/device_classes.xml to get command classes
 end
