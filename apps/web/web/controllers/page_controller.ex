@@ -14,4 +14,9 @@ defmodule Web.PageController do
     Process.send(params["node"] |> String.to_existing_atom, {:set_level, 0x00, 0x02}, [])
     render conn, "index.html"
   end
+
+  def start_network(conn, params) do
+    Domo.Manager.start(params["network"])
+    render conn, "index.html"
+  end
 end

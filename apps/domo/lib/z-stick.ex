@@ -1,4 +1,19 @@
 defmodule ZStick do
+  defmodule Discover do
+    def discover do
+      Nerves.UART.enumerate
+      |> Enum.filter(&filter/1)
+      |> Enum.map(fn({usb_dev, _info}) ->
+        {usb_dev, fn() -> ZStick.start(usb_dev, usb_dev |> String.to_atom) end}
+      end)
+    end
+
+    def filter({usb_dev, %{product_id: 512, vendor_id: 1624}}), do: usb_dev
+    def filter(_), do: nil
+  end
+end
+
+defmodule ZStick do
   require Logger
   use GenServer
 

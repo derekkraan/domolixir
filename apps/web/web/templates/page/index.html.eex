@@ -1,12 +1,19 @@
+<div>
+  <%= for network <- Domo.Manager.discover do %>
+    <%= form_tag("/start_network?#{%{network: network |> elem(0)} |> URI.encode_query}", method: :post) do %>
+      <button>START</button>
+    <% end %>
+  <% end %>
+</div>
 <div class="row marketing">
-  <%= for node <- Domo.SystemSupervisor.all_nodes() do %>
+  <%= for node <- Domo.Manager.all_nodes() do %>
     <% info = GenServer.call(node, :get_information) %>
     <div class="node">
       <p><%= info.label %></p>
-      <%= form_tag("/turn_on/#{node}", method: :post) do %>
+      <%= form_tag("/turn_on?#{%{node: node} |> URI.encode_query}", method: :post) do %>
         <button>ON</button>
       <% end %>
-      <%= form_tag("/turn_off/#{node}", method: :post) do %>
+      <%= form_tag("/turn_off?#{%{node: node} |> URI.encode_query}", method: :post) do %>
         <button>OFF</button>
       <% end %>
     </div>
