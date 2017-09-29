@@ -43,6 +43,12 @@ defmodule ZWave.Constants do
       @add_node_stop 0x05
       @add_node_stop_failed 0x06
 
+      @transmit_option_ack 0x01
+      @transmit_option_low_power 0x02
+      @transmit_option_auto_route 0x04
+      @transmit_option_no_route 0x10
+      @transmit_option_explore 0x20
+
       @option_high_power 0x80
       @option_nwi 0x40
 

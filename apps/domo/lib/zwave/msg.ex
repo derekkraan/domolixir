@@ -55,7 +55,11 @@ defmodule ZWave.Msg do
   def required_response?(%ZWave.Msg{function: @func_id_zw_get_node_protocol_info}, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _rest::binary>>), do: true
   def required_response?(%ZWave.Msg{function: @func_id_zw_get_node_protocol_info}, _resp), do: false
 
+  def required_response?(%ZWave.Msg{function: @func_id_zw_send_data}, <<@sof, _length, @response, @func_id_zw_send_data, _rest::binary>>), do: true
+  def required_response?(%ZWave.Msg{function: @func_id_zw_send_data}, _), do: false
+
   def required_response?(%ZWave.Msg{function: @func_id_zw_set_learn_mode}, <<@ack>>), do: true
+
   def required_response?(%ZWave.Msg{function: function}, <<@sof, _length, @response, function, _rest::binary>>), do: true
 
   def required_response?(_req, <<@ack>>), do: true

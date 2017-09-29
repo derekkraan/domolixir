@@ -219,6 +219,11 @@ defmodule ZWave.ZStick do
     state
   end
 
+  def process_message(<<@sof, _length, @response, @func_id_zw_send_data, 0, rest::binary>>, state) do
+    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error}, [])
+    state
+  end
+
   def process_message(<<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>, state) do
     Logger.debug "SUC Node id successfully set"
     state

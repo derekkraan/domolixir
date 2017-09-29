@@ -44,10 +44,29 @@ defmodule ZWave.Node do
   defp request_state(state) do
     %ZWave.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [state.node_id], target_node_id: state.node_id}
     |> ZWave.ZStick.queue_command(state.name)
+    state
+  end
+
+  @association_cmd_groupings_get 0x05
+
+  defp request_association_groupings(state) do
+    use Bitwise
+
+    IO.inspect state
+    IO.inspect state.command_classes
+    state.command_classes |> Enum.each(fn(command_class) ->
+      %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x02, command_class, @association_cmd_groupings_get, @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore], target_node_id: state.node_id}
+      |> ZWave.ZStick.queue_command(state.name)
+    end)
+    state
   end
 
   def handle_info({:message_from_zstick, message}, state) do
     {:noreply, ZWave.Node.process_message(message, state)}
+  end
+
+  def handle_info({:zstick_send_error}, state) do
+    {:noreply, %{state | alive: false}}
   end
 
   @command_class_basic 0x20
@@ -91,18 +110,21 @@ defmodule ZWave.Node do
     %ZWave.Msg{cmd | target_node_id: state.node_id} |> ZWave.ZStick.queue_command(state.name)
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, 0, _rest::binary>>, state) do
+  def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _cap, _freq, _some, _basic, 0, _rest::binary>>, state) do
     %{state | alive: false}
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>, state) do
+    IO.inspect(capabilities)
     %{state |
       alive: true,
       capabilities: capabilities,
       basic_class: basic_class,
       generic_class: generic_class,
       specific_class: specific_class,
-    } |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
+    }
+    |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
+    |> request_association_groupings()
   end
 
   def basic_class(%{basic_class: 1}), do: :controller
