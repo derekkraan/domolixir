@@ -1,30 +1,26 @@
 defmodule OpenZWaveConfig do
-  def command_class(generic, specific) do
+  def get_information(generic, specific) do
     {:ok, state, ""} = Path.join(:code.priv_dir(:domo), "open-zwave/device_classes.xml")
-    |> :xmerl_sax_parser.file(event_fun: &xml_event/3)
-    find_command_class(state.specifics, int2hex(generic), int2hex(specific))
-                 # |> File.read
-    # generic_hex = int2hex(generic)
-    # specific_hex = int2hex(specific)
-    # {doc, _} = xml
-          # |> :binary.bin_to_list
-          # |> :xmerl_scan.string()
-    # :xmerl_xpath.string('/DeviceClasses/Generic[@key="#{generic_hex}"]/Specific[@key="#{specific_hex}"]@command_classes', doc)
-    # state # parse config/device_classes.xml to get command classes
+    |> :xmerl_sax_parser.file(event_fun: &OpenZWaveDeviceClassesSaxParser.xml_event/3)
+    find_specific(state.specifics, generic |> int2hex(), specific |> int2hex())
   end
 
-  defp find_command_class([], _gen, _spe), do: nil
-  defp find_command_class([specific | specifics], gen, spe) do
-    if specific.generic_key == gen && specific.specific_key == spe do
-      specific.command_classes
-    else
-      find_command_class(specifics, gen, spe)
-    end
+  def command_classes(generic, specific) do
+    get_information(generic, specific).command_classes
   end
+
+  @empty_attrs %{command_classes: [], label: "", key: ""}
+
+  defp find_specific([], _gen, _spe), do: @empty_attrs
+  defp find_specific([specific = %{generic_key: gen, specific_key: spe} | specifics], gen, spe), do: specific
+  defp find_specific([_specific | specifics], gen, spe), do: find_specific(specifics, gen, spe)
 
   defp int2hex(int) do
     "0x#{Integer.to_string(int, 16) |> String.pad_leading(2, "0")}"
   end
+end
+
+defmodule OpenZWaveDeviceClassesSaxParser do
 
   @empty_attrs %{command_classes: [], label: "", key: ""}
 
@@ -44,20 +40,20 @@ defmodule OpenZWaveConfig do
     state
   end
 
-  def attrs_to_map(attrs, map\\%{})
-  def attrs_to_map([], map), do: map
-  def attrs_to_map([{_, _, name = 'command_classes', command_classes} | attrs], map) do
+  defp attrs_to_map(attrs, map\\%{})
+  defp attrs_to_map([], map), do: map
+  defp attrs_to_map([{_, _, name = 'command_classes', command_classes} | attrs], map) do
     attrs
     |> attrs_to_map(Map.put(map, name |> to_string() |> String.to_atom(), command_classes |> parse_command_classes()))
   end
-  def attrs_to_map([{_, _, name, val} | attrs], map) do
+  defp attrs_to_map([{_, _, name, val} | attrs], map) do
     attrs
     |> attrs_to_map(Map.put(map, name |> to_string() |> String.to_atom(), val |> to_string()))
   end
 
-  def parse_command_classes(charlist), do: parse_command_classes(charlist |> to_string() |> String.split(","), [])
-  def parse_command_classes([], result), do: result
-  def parse_command_classes(["0x" <> command_class | command_classes], result) do
+  defp parse_command_classes(charlist), do: parse_command_classes(charlist |> to_string() |> String.split(","), [])
+  defp parse_command_classes([], result), do: result
+  defp parse_command_classes(["0x" <> command_class | command_classes], result) do
     parse_command_classes(command_classes, [String.to_integer(command_class, 16) | result])
   end
 end

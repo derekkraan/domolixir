@@ -1,4 +1,6 @@
 defmodule ZStick.Node do
+  require Logger
+
   use GenServer
   use ZStick.Constants
 
@@ -10,6 +12,9 @@ defmodule ZStick.Node do
     :basic_class,
     :generic_class,
     :specific_class,
+    :command_classes,
+    :generic_label,
+    :specific_label,
   ]
 
   def start_link(name, node_id) do
@@ -41,7 +46,7 @@ defmodule ZStick.Node do
 
     IO.puts "START NODE #{node_id}"
 
-    {:ok, _child} = Supervisor.start_child(ZStick.supervisor_name(state.name), worker(ZStick.Node, [state.name, node_id], [id: ZStick.Node.node_name(state.name, node_id)]))
+    {:ok, _child} = Supervisor.start_child(ZStick.network_supervisor_name(state.name), worker(ZStick.Node, [state.name, node_id], [id: ZStick.Node.node_name(state.name, node_id)]))
     set_up_nodes(state, other_node_ids)
   end
 
@@ -75,10 +80,13 @@ defmodule ZStick.Node do
   @switchmultilevelcmd_supportedreport 0x07
 
   def handle_info({:set_basic, level}, state) do
-    require Logger
     Logger.debug "SETTING LEVEL #{level |> inspect}"
     %ZStick.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x03, @command_class_basic, @basic_set, level]} |> do_cmd(state)
     {:noreply, state}
+  end
+
+  def handle_call(:get_information, _from, state) do
+    {:reply, state, state}
   end
 
   def handle_info({:set_level, level, duration}, state) do
@@ -87,7 +95,6 @@ defmodule ZStick.Node do
   end
 
   def do_cmd(cmd, state) do
-    require Logger
     Logger.debug "SENDING COMMAND"
     %ZStick.Msg{cmd | target_node_id: state.node_id} |> ZStick.queue_command(state.name)
   end
@@ -103,7 +110,7 @@ defmodule ZStick.Node do
       basic_class: basic_class,
       generic_class: generic_class,
       specific_class: specific_class,
-    }
+    } |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
   end
 
   def basic_class(%{basic_class: 1}), do: :controller

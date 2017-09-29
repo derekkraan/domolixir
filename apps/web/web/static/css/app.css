@@ -1,1 +1,22 @@
 /* This file is for your main application css. */
+button {
+  border-radius: 3px;
+  background-color: #EEE;
+  border: 1px solid #444;
+  width: 200px;
+  height: 60px;
+  font-weight: 600;
+  color: #333;
+}
+
+div.node {
+  display: inline-block;
+  border: 1px solid #CCC;
+  padding: 10px;
+  margin: 10px;
+}
+
+div.node p {
+  width: 100%;
+  text-align: center;
+}

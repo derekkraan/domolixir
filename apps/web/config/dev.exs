@@ -19,6 +19,7 @@ use Mix.Config
 # If desired, both `http:` and `https:` keys can be
 # configured to run both http and https servers on
 # different ports.
+IO.inspect "IAM DEV"
 config :web, Web.Endpoint,
   http: [port: 4000],
   debug_errors: true,

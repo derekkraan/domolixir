@@ -1,19 +1,5 @@
-defmodule ZStick.Nodes do
-  use Supervisor
-
-  def start_link(usb_device, name) do
-    Supervisor.start_link(__MODULE__, {usb_device, name}, name: ZStick.supervisor_name(name))
-  end
-
-  def init({usb_device, name}) do
-    processes = [
-      worker(ZStick, [usb_device, name]),
-    ]
-    supervise(processes, strategy: :one_for_one)
-  end
-end
-
 defmodule ZStick do
+  require Logger
   use GenServer
 
   use ZStick.Constants
@@ -27,14 +13,33 @@ defmodule ZStick do
     :node_bitfield,
     :current_callback_id,
     :callback_commands,
+    :label,
   ]
+
+  def start(usb_device, name) do
+    import Supervisor.Spec, warn: false
+
+    worker_spec = [worker(__MODULE__, [usb_device, name], [id: name])]
+
+    supervisor_spec = supervisor(Domo.NetworkSupervisor, [worker_spec, [name: network_supervisor_name(name)]], [id: network_supervisor_name(name)])
+    case Domo.SystemSupervisor.start_child(supervisor_spec) do
+      {:ok, _child} -> :ok
+      {:error, error} -> IO.inspect(error)
+    end
+  end
+
+  def network_supervisor_name(name), do: :"#{name}_network_supervisor"
 
   def start_link(usb_device, name) do
     GenServer.start_link(__MODULE__, {usb_device, name}, name: name)
   end
 
+  def handle_call(:get_information, _from, state) do
+    {:reply, state, state}
+  end
+
   def init({usb_device, name}) do
-    state = %State{name: name}
+    state = %State{name: name, label: name}
     {:ok, usb_zstick_pid} = ZStick.UART.connect(usb_device)
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
@@ -58,14 +63,12 @@ defmodule ZStick do
   end
 
   def handle_message_from_zstick(:sendnak, state) do
-    require Logger
     Logger.debug "RECEIVED #{:sendnak} |> sending NAK"
     <<@nak>> |> send_msg(state.usb_zstick_pid)
     state
   end
 
   def handle_message_from_zstick(<<@can>>, state) do
-    require Logger
     Logger.debug "RECEIVED CAN"
     send_msg(<<@can>>, state.usb_zstick_pid)
     if state.current_command do
@@ -75,7 +78,6 @@ defmodule ZStick do
   end
 
   def handle_message_from_zstick(message, state) do
-    require Logger
     Logger.debug "RECEIVED #{message |> inspect}"
     if message != <<@ack>> do
       send_msg(<<@ack>>, state.usb_zstick_pid)
@@ -122,7 +124,6 @@ defmodule ZStick do
 
   def add_command(state, command) do
     # {state, command} = add_callback_id(state, command)
-    require Logger
     Logger.debug "ADDING COMMAND"
     %State{state | command_queue: :queue.in(command, state.command_queue)}
   end
@@ -162,13 +163,11 @@ defmodule ZStick do
   end
 
   def log_msg(msg) do
-    require Logger
     Logger.debug "SENDING  #{msg |> inspect}"
     msg
   end
 
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>, state) do
-    require Logger
     Logger.debug "GOT SERIAL API CAPABILITIES"
     state
     |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_get_random})
@@ -177,7 +176,6 @@ defmodule ZStick do
   end
 
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8), _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes), _something, _else, _checksum>>, state) do
-    require Logger
     Logger.debug "GOT SERIAL API INIT DATA"
     Logger.debug "node bitfield: #{node_bitfield |> inspect}"
     state = %State{state | node_bitfield: node_bitfield}
@@ -193,19 +191,16 @@ defmodule ZStick do
   def process_message(<<@sof, _length, @response, @func_id_zw_get_random, random, _checksum>>, state), do: state
 
   def process_message(<<@sof, _length, @response, @func_id_zw_memory_get_id, _home_id::size(32), controller_node_id, _checksum>>, state) do
-    require Logger
     Logger.debug "controller node id: #{controller_node_id |> inspect}"
     %State{state | controller_node_id: controller_node_id}
   end
 
   def process_message(<<@ack>>, state) do
-    require Logger
     Logger.debug "ACK received"
     state
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>, state) do
-    require Logger
     Logger.debug "SUC Node id successfully set"
     state
   end
@@ -213,7 +208,6 @@ defmodule ZStick do
   def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>, state) do
     %ZStick.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]} |> queue_command(self())
     %ZStick.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id} |> queue_command(self())
-    require Logger
     Logger.debug "Setting ourselves as SIS"
     state
   end
@@ -223,7 +217,6 @@ defmodule ZStick do
   end
 
   def process_message(message, state) do
-    require Logger
     Logger.debug "Unknown message: #{message |> inspect}"
     state
   end

@@ -35,6 +35,7 @@ defmodule Domo.Mixfile do
       {:httpotion, "~> 3.0"},
       {:nerves_ssdp_client, "~> 0.1.0"},
       {:nerves_uart, "~> 0.1"},
+      {:benchfella, "~> 0.3.0"},
     ]
   end
 end
