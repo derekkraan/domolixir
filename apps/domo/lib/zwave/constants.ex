@@ -18,6 +18,9 @@ defmodule ZWave.Constants do
 
       @func_id_zw_request_network_update 0x53
 
+      @func_id_zw_add_node_to_network 0x4a
+      @func_id_zw_remove_node_from_network 0x4b
+
       @func_id_serial_api_get_init_data 0x02
       @func_id_serial_api_appl_node_information 0x03
 
@@ -32,6 +35,13 @@ defmodule ZWave.Constants do
 
       @num_node_bitfield_bytes 29 # 29 = 232 / 8
       @max_num_nodes 232
+
+      @add_node_controller 0x02
+      @add_node_any 0x01
+      @option_high_power 0x80
+      @option_nwi 0x40
+
+      @remove_node_any 0x01
 
       @sof 0x01
       @ack 0x06

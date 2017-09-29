@@ -39,7 +39,7 @@ defmodule ZWave.ZStick do
   end
 
   def handle_call(:get_commands, _from, state) do
-    {:reply, [], state}
+    {:reply, [[:add_device], [:remove_device]], state}
   end
 
   def init({usb_device, name}) do
@@ -47,7 +47,7 @@ defmodule ZWave.ZStick do
     {:ok, usb_zstick_pid} = ZStick.UART.connect(usb_device)
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
-    state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil, current_callback_id: 0, callback_commands: %{}}
+    state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil, current_callback_id: 1, callback_commands: %{}}
 
     Process.send_after(self(), :tick, 100)
 
@@ -64,6 +64,19 @@ defmodule ZWave.ZStick do
 
   def handle_cast({:message_from_zstick, message}, state) do
     {:noreply, handle_message_from_zstick(message, state)}
+  end
+
+  def handle_info(:remove_device, state) do
+    use Bitwise
+
+    {state, command} = add_callback_id(state, %ZWave.Msg{type: @request, function: @func_id_zw_remove_node_from_network, data: [@remove_node_any]})
+    {:noreply, state |> add_command(command)}
+  end
+
+  def handle_info(:add_device, state) do
+    use Bitwise
+    {state, command} = add_callback_id(state, %ZWave.Msg{type: @request, function: @func_id_zw_add_node_to_network, data: [@add_node_any ||| @option_high_power]})
+    {:noreply, state |> add_command(command)}
   end
 
   def handle_message_from_zstick(:sendnak, state) do
