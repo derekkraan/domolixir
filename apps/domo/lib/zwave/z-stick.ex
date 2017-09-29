@@ -225,17 +225,15 @@ defmodule ZWave.ZStick do
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>, state) do
-    %ZWave.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]} |> queue_command(self())
-    %ZWave.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id} |> queue_command(self())
     Logger.debug "Setting ourselves as SIS"
     state
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id})
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, _suc_node_id, _checksum>>, state) do
     state
   end
-
-  # def process_message(<<@sof, _length, @response, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, _rest::binary>>
 
   def process_message(<<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_failed, _rest::binary>>, state) do
     use Bitwise
@@ -252,6 +250,7 @@ defmodule ZWave.ZStick do
     Logger.debug "non-connected device removed"
     state
   end
+
   def process_message(<<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, node_id, _rest::binary>>, state) do
     ZWave.Node.stop(state.name, node_id)
     state
