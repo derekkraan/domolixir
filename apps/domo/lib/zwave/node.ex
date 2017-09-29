@@ -89,6 +89,15 @@ defmodule ZStick.Node do
     {:reply, state, state}
   end
 
+  def handle_call(:get_commands, _from, state) do
+    commands = [
+      {:basic, :turn_on},
+      {:basic, :turn_off},
+      {:multilevel, :set_value, :value, :duration},
+    ]
+    {:reply, commands, state}
+  end
+
   def handle_info({:set_level, level, duration}, state) do
     %ZStick.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x04, @command_class_switch_multilevel, @switchmultilevelcmd_set, level, duration]} |> do_cmd(state)
     {:noreply, state}
