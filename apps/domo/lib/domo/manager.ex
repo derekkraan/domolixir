@@ -1,5 +1,5 @@
 defmodule Domo.Manager do
-  @networks [ZStick]
+  @networks [ZWave]
 
   def discover do
     @networks

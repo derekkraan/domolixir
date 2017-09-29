@@ -1,9 +1,9 @@
-defprotocol ZStick.Logger do
+defprotocol ZWave.Logger do
   @fallback_to_any true
   def log(data)
 end
 
-defimpl ZStick.Logger, for: ZStick.Msg do
+defimpl ZWave.Logger, for: ZWave.Msg do
   require Logger
   def log(msg) do
     "Sending message: #{msg |> inspect}" |> Logger.debug
@@ -11,7 +11,7 @@ defimpl ZStick.Logger, for: ZStick.Msg do
   end
 end
 
-defimpl ZStick.Logger, for: ZStick.Resp do
+defimpl ZWave.Logger, for: ZWave.Resp do
   require Logger
   def log(resp) do
     "Received: #{resp.bytes |> inspect}" |> Logger.debug
@@ -19,7 +19,7 @@ defimpl ZStick.Logger, for: ZStick.Resp do
   end
 end
 
-defimpl ZStick.Logger, for: Any do
+defimpl ZWave.Logger, for: Any do
   require Logger
   def log(any) do
     Logger.debug(any)

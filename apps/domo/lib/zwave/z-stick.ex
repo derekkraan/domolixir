@@ -1,23 +1,8 @@
-defmodule ZStick do
-  defmodule Discover do
-    def discover do
-      Nerves.UART.enumerate
-      |> Enum.filter(&filter/1)
-      |> Enum.map(fn({usb_dev, _info}) ->
-        {usb_dev, fn() -> ZStick.start(usb_dev, usb_dev |> String.to_atom) end}
-      end)
-    end
-
-    def filter({usb_dev, %{product_id: 512, vendor_id: 1624}}), do: usb_dev
-    def filter(_), do: nil
-  end
-end
-
-defmodule ZStick do
+defmodule ZWave.ZStick do
   require Logger
   use GenServer
 
-  use ZStick.Constants
+  use ZWave.Constants
 
   defmodule State, do: defstruct [
     :name,
@@ -51,6 +36,10 @@ defmodule ZStick do
 
   def handle_call(:get_information, _from, state) do
     {:reply, state, state}
+  end
+
+  def handle_call(:get_commands, _from, state) do
+    {:reply, [], state}
   end
 
   def init({usb_device, name}) do
@@ -100,7 +89,7 @@ defmodule ZStick do
 
     state = process_message(message, state)
 
-    if ZStick.Msg.required_response?(state.current_command, message) do
+    if ZWave.Msg.required_response?(state.current_command, message) do
       %State{state | current_command: nil}
     else
       state
@@ -111,7 +100,7 @@ defmodule ZStick do
   def exec_command(state) do
     send_msg(state.current_command, state.usb_zstick_pid)
 
-    if(ZStick.Msg.required_response?(state.current_command, nil)) do
+    if(ZWave.Msg.required_response?(state.current_command, nil)) do
       %State{state | current_command: nil}
     else
       state
@@ -162,17 +151,17 @@ defmodule ZStick do
   def do_init_sequence(state) do
     state
     |> add_command(<<@nak>>)
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_get_version})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_memory_get_id})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_get_controller_capabilities})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_serial_api_get_capabilities})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_get_suc_node_id})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_version})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_memory_get_id})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_controller_capabilities})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_serial_api_get_capabilities})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_suc_node_id})
   end
 
   defp send_msg(msg, pid) do
     msg
-    |> ZStick.Logger.log
-    |> ZStick.Msg.prepare
+    |> ZWave.Logger.log
+    |> ZWave.Msg.prepare
     |> log_msg
     |> ZStick.UART.write(pid)
   end
@@ -185,21 +174,21 @@ defmodule ZStick do
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>, state) do
     Logger.debug "GOT SERIAL API CAPABILITIES"
     state
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_zw_get_random})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_serial_api_get_init_data})
-    |> add_command(%ZStick.Msg{type: @request, function: @func_id_serial_api_appl_node_information, data: [state.controller_node_id], target_node_id: state.controller_node_id})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_random})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_serial_api_get_init_data})
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_serial_api_appl_node_information, data: [state.controller_node_id], target_node_id: state.controller_node_id})
   end
 
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8), _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes), _something, _else, _checksum>>, state) do
     Logger.debug "GOT SERIAL API INIT DATA"
     Logger.debug "node bitfield: #{node_bitfield |> inspect}"
     state = %State{state | node_bitfield: node_bitfield}
-    ZStick.Node.set_up_nodes(state)
+    ZWave.Node.set_up_nodes(state)
     state
   end
 
   def process_message(msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>, state) do
-    Process.send(ZStick.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
+    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
 
@@ -221,8 +210,8 @@ defmodule ZStick do
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>, state) do
-    %ZStick.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]} |> queue_command(self())
-    %ZStick.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id} |> queue_command(self())
+    %ZWave.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]} |> queue_command(self())
+    %ZWave.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id} |> queue_command(self())
     Logger.debug "Setting ourselves as SIS"
     state
   end

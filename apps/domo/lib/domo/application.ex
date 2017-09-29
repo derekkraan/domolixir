@@ -12,6 +12,7 @@ defmodule Domo.Application do
     children = [
       worker(Domo.Sunrise, []),
       supervisor(Domo.SystemSupervisor, []),
+      supervisor(Domo.DiscoverSupervisor, []),
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html

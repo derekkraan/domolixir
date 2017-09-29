@@ -1,9 +1,9 @@
-defmodule ZStick.Msg do
+defmodule ZWave.Msg do
   defstruct [:type, :function, :data, :callback_id, :target_node_id]
 
-  use ZStick.Constants
+  use ZWave.Constants
 
-  def prepare(msg = %ZStick.Msg{type: type, function: function, data: data, callback_id: callback_id}) do
+  def prepare(msg = %ZWave.Msg{type: type, function: function, data: data, callback_id: callback_id}) do
     msg
     [@sof, 0x00, type, function]
     |> add_data(data)
@@ -52,11 +52,11 @@ defmodule ZStick.Msg do
   # so we have to assume that a response is talking
   # about the current command, so block until this is
   # received.
-  def required_response?(%ZStick.Msg{function: @func_id_zw_get_node_protocol_info}, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _rest::binary>>), do: true
-  def required_response?(%ZStick.Msg{function: @func_id_zw_get_node_protocol_info}, _resp), do: false
+  def required_response?(%ZWave.Msg{function: @func_id_zw_get_node_protocol_info}, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _rest::binary>>), do: true
+  def required_response?(%ZWave.Msg{function: @func_id_zw_get_node_protocol_info}, _resp), do: false
 
-  def required_response?(%ZStick.Msg{function: @func_id_zw_set_learn_mode}, <<@ack>>), do: true
-  def required_response?(%ZStick.Msg{function: function}, <<@sof, _length, @response, function, _rest::binary>>), do: true
+  def required_response?(%ZWave.Msg{function: @func_id_zw_set_learn_mode}, <<@ack>>), do: true
+  def required_response?(%ZWave.Msg{function: function}, <<@sof, _length, @response, function, _rest::binary>>), do: true
 
   def required_response?(_req, <<@ack>>), do: true
   def required_response?(_req, <<@nak>>), do: true

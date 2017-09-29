@@ -1,8 +1,8 @@
-defmodule ZStick.Node do
+defmodule ZWave.Node do
   require Logger
 
   use GenServer
-  use ZStick.Constants
+  use ZWave.Constants
 
   defstruct [
     :alive,
@@ -46,12 +46,12 @@ defmodule ZStick.Node do
 
     IO.puts "START NODE #{node_id}"
 
-    {:ok, _child} = Supervisor.start_child(ZStick.network_supervisor_name(state.name), worker(ZStick.Node, [state.name, node_id], [id: ZStick.Node.node_name(state.name, node_id)]))
+    {:ok, _child} = Supervisor.start_child(ZWave.ZStick.network_supervisor_name(state.name), worker(ZWave.Node, [state.name, node_id], [id: ZWave.Node.node_name(state.name, node_id)]))
     set_up_nodes(state, other_node_ids)
   end
 
   def init({name, node_id}) do
-    state = %ZStick.Node{alive: true, node_id: node_id, name: name}
+    state = %ZWave.Node{alive: true, node_id: node_id, name: name}
     request_state(state)
     {:ok, state}
   end
@@ -59,12 +59,12 @@ defmodule ZStick.Node do
   def node_name(name, node_id), do: :"#{name}_node_#{node_id}"
 
   defp request_state(state) do
-    %ZStick.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [state.node_id], target_node_id: state.node_id}
-    |> ZStick.queue_command(state.name)
+    %ZWave.Msg{type: @request, function: @func_id_zw_get_node_protocol_info, data: [state.node_id], target_node_id: state.node_id}
+    |> ZWave.ZStick.queue_command(state.name)
   end
 
   def handle_info({:message_from_zstick, message}, state) do
-    {:noreply, ZStick.Node.process_message(message, state)}
+    {:noreply, ZWave.Node.process_message(message, state)}
   end
 
   @command_class_basic 0x20
@@ -81,7 +81,7 @@ defmodule ZStick.Node do
 
   def handle_info({:set_basic, level}, state) do
     Logger.debug "SETTING LEVEL #{level |> inspect}"
-    %ZStick.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x03, @command_class_basic, @basic_set, level]} |> do_cmd(state)
+    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x03, @command_class_basic, @basic_set, level]} |> do_cmd(state)
     {:noreply, state}
   end
 
@@ -99,13 +99,13 @@ defmodule ZStick.Node do
   end
 
   def handle_info({:set_level, level, duration}, state) do
-    %ZStick.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x04, @command_class_switch_multilevel, @switchmultilevelcmd_set, level, duration]} |> do_cmd(state)
+    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x04, @command_class_switch_multilevel, @switchmultilevelcmd_set, level, duration]} |> do_cmd(state)
     {:noreply, state}
   end
 
   def do_cmd(cmd, state) do
     Logger.debug "SENDING COMMAND"
-    %ZStick.Msg{cmd | target_node_id: state.node_id} |> ZStick.queue_command(state.name)
+    %ZWave.Msg{cmd | target_node_id: state.node_id} |> ZWave.ZStick.queue_command(state.name)
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, 0, _rest::binary>>, state) do

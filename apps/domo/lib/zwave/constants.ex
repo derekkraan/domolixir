@@ -1,4 +1,4 @@
-defmodule ZStick.Constants do
+defmodule ZWave.Constants do
   defmacro __using__(_) do
     quote do
       @func_id_zw_get_version 0x15

@@ -1,5 +1,5 @@
 defmodule ZStick.Reader do
-  use ZStick.Constants
+  use ZWave.Constants
 
   def start_link(usb_zstick_pid, zstick_pid) do
     reader_pid = spawn_link fn -> ZStick.Reader.init(usb_zstick_pid, zstick_pid) end

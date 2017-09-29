@@ -1,0 +1,4 @@
+duration:1.0;mem stats:false;sys mem stats:false
+module;test;tags;iterations;elapsed
+OpenZWaveConfigBench	reading device_classes.xml		1000	2523276
+ZStickDiscoverBench	discovering zsticks		500	1637619
