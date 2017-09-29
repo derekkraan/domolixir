@@ -21,33 +21,16 @@ defmodule ZWave.Node do
     GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id))
   end
 
-  def nodes_in_bytes(bytes, offset\\0, nodes\\[])
-  def nodes_in_bytes(<<>>, _offset, nodes), do: nodes
-  def nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
-    nodes_in_bytes(bytes, offset + 8, nodes_in_byte(byte, offset) ++ nodes)
-  end
-  def nodes_in_byte(byte, offset, counter\\0, nodes\\[])
-  def nodes_in_byte(_byte, _offset, 8, nodes), do: nodes
-  def nodes_in_byte(byte, offset, counter, nodes) do
-    use Bitwise
-    if (byte &&& (1 <<< counter)) != 0 do
-      nodes_in_byte(byte, offset, counter + 1, [offset + counter + 1 | nodes])
-    else
-      nodes_in_byte(byte, offset, counter + 1, nodes)
-    end
-  end
-
-  def set_up_nodes(state) do
-    set_up_nodes(state, nodes_in_bytes(<<state.node_bitfield::size(@max_num_nodes)>>) |> IO.inspect)
-  end
-  def set_up_nodes(_state, []), do: nil
-  def set_up_nodes(state, [node_id | other_node_ids]) do
+  def start(controller_name, node_id) do
     import Supervisor.Spec
-
     IO.puts "START NODE #{node_id}"
+    {:ok, _child} = Supervisor.start_child(ZWave.ZStick.network_supervisor_name(controller_name), worker(ZWave.Node, [controller_name, node_id], [id: ZWave.Node.node_name(controller_name, node_id)]))
+  end
 
-    {:ok, _child} = Supervisor.start_child(ZWave.ZStick.network_supervisor_name(state.name), worker(ZWave.Node, [state.name, node_id], [id: ZWave.Node.node_name(state.name, node_id)]))
-    set_up_nodes(state, other_node_ids)
+  def stop(controller_name, node_id) do
+    IO.puts "STOPPING NODE #{node_id}"
+    :ok = Supervisor.terminate_child(ZWave.ZStick.network_supervisor_name(controller_name), ZWave.Node.node_name(controller_name, node_id))
+    :ok = Supervisor.delete_child(ZWave.ZStick.network_supervisor_name(controller_name), ZWave.Node.node_name(controller_name, node_id))
   end
 
   def init({name, node_id}) do

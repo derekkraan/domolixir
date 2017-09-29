@@ -36,8 +36,13 @@ defmodule ZWave.Constants do
       @num_node_bitfield_bytes 29 # 29 = 232 / 8
       @max_num_nodes 232
 
-      @add_node_controller 0x02
       @add_node_any 0x01
+      @add_node_controller 0x02
+      @add_node_slave 0x03
+      @add_node_existing 0x04
+      @add_node_stop 0x05
+      @add_node_stop_failed 0x06
+
       @option_high_power 0x80
       @option_nwi 0x40
 
@@ -50,6 +55,13 @@ defmodule ZWave.Constants do
       @add_node_status_protocol_done 0x05
       @add_node_status_done 0x06
       @add_node_status_failed 0x07
+
+      @remove_node_status_learn_ready 0x01
+      @remove_node_status_node_found 0x02
+      @remove_node_status_removing_slave 0x03
+      @remove_node_status_removing_controller 0x04
+      @remove_node_status_done 0x06
+      @remove_node_status_failed 0x07
 
       @sof 0x01
       @ack 0x06

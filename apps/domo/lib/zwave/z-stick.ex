@@ -195,8 +195,10 @@ defmodule ZWave.ZStick do
   def process_message(<<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8), _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes), _something, _else, _checksum>>, state) do
     Logger.debug "GOT SERIAL API INIT DATA"
     Logger.debug "node bitfield: #{node_bitfield |> inspect}"
-    state = %State{state | node_bitfield: node_bitfield}
-    ZWave.Node.set_up_nodes(state)
+
+    ZWave.NodeBitmaskParser.nodes_in_bytes(<<node_bitfield::size(@max_num_nodes)>>)
+    |> Enum.each(fn(node_id) -> ZWave.Node.start(state.name, node_id) end)
+
     state
   end
 
@@ -233,8 +235,27 @@ defmodule ZWave.ZStick do
     state
   end
 
-  # def process_message(<<@sof, _length, @response, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_adding_slave, node_id, length, basic_class, generic_class, specific_class, command_classes:size(8 * length - 24), _checksum>>, state) do
-  # end
+  # def process_message(<<@sof, _length, @response, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, _rest::binary>>
+
+  def process_message(<<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_failed, _rest::binary>>, state) do
+    use Bitwise
+    state
+    |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_add_node_to_network, data: [@add_node_stop]})
+  end
+
+  def process_message(<<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_adding_slave, node_id, _rest::binary>>, state) do
+    ZWave.Node.start(state.name, node_id)
+    state
+  end
+
+  def process_message(<<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, 0, _rest::binary>>, state) do
+    Logger.debug "non-connected device removed"
+    state
+  end
+  def process_message(<<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, node_id, _rest::binary>>, state) do
+    ZWave.Node.stop(state.name, node_id)
+    state
+  end
 
   def process_message(message, state) do
     Logger.debug "Unknown message: #{message |> inspect}"
