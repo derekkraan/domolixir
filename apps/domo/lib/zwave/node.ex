@@ -21,24 +21,24 @@ defmodule ZWave.Node do
     GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id))
   end
 
-  defp nodes_in_bytes(bytes, offset\\0, nodes\\[])
-  defp nodes_in_bytes(<<>>, _offset, nodes), do: nodes
-  defp nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
-    nodes_in_bytes(bytes, offset + 8, nodes_in_byte(byte) ++ nodes)
+  def nodes_in_bytes(bytes, offset\\0, nodes\\[])
+  def nodes_in_bytes(<<>>, _offset, nodes), do: nodes
+  def nodes_in_bytes(<<byte, bytes::binary>>, offset, nodes) do
+    nodes_in_bytes(bytes, offset + 8, nodes_in_byte(byte, offset) ++ nodes)
   end
-  defp nodes_in_byte(byte, offset\\0, nodes\\[])
-  defp nodes_in_byte(byte, 8, nodes), do: nodes
-  defp nodes_in_byte(byte, offset, nodes) do
+  def nodes_in_byte(byte, offset, counter\\0, nodes\\[])
+  def nodes_in_byte(_byte, _offset, 8, nodes), do: nodes
+  def nodes_in_byte(byte, offset, counter, nodes) do
     use Bitwise
-    if (byte &&& (1 <<< offset)) != 0 do
-      nodes_in_byte(byte, offset + 1, [offset + 1 | nodes])
+    if (byte &&& (1 <<< counter)) != 0 do
+      nodes_in_byte(byte, offset, counter + 1, [offset + counter + 1 | nodes])
     else
-      nodes_in_byte(byte, offset + 1, nodes)
+      nodes_in_byte(byte, offset, counter + 1, nodes)
     end
   end
 
   def set_up_nodes(state) do
-    set_up_nodes(state, nodes_in_bytes(<<state.node_bitfield::size(@max_num_nodes)>>))
+    set_up_nodes(state, nodes_in_bytes(<<state.node_bitfield::size(@max_num_nodes)>>) |> IO.inspect)
   end
   def set_up_nodes(_state, []), do: nil
   def set_up_nodes(state, [node_id | other_node_ids]) do
@@ -91,9 +91,9 @@ defmodule ZWave.Node do
 
   def handle_call(:get_commands, _from, state) do
     commands = [
-      {:basic, :turn_on},
-      {:basic, :turn_off},
-      {:multilevel, :set_value, :value, :duration},
+      [:basic, :turn_on],
+      [:basic, :turn_off],
+      [:multilevel, :set_value, :value, :duration],
     ]
     {:reply, commands, state}
   end

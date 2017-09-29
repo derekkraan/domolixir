@@ -66,14 +66,14 @@ defmodule ZWave.ZStick do
     {:noreply, handle_message_from_zstick(message, state)}
   end
 
-  def handle_info(:remove_device, state) do
+  def handle_info({:remove_device}, state) do
     use Bitwise
 
     {state, command} = add_callback_id(state, %ZWave.Msg{type: @request, function: @func_id_zw_remove_node_from_network, data: [@remove_node_any]})
     {:noreply, state |> add_command(command)}
   end
 
-  def handle_info(:add_device, state) do
+  def handle_info({:add_device}, state) do
     use Bitwise
     {state, command} = add_callback_id(state, %ZWave.Msg{type: @request, function: @func_id_zw_add_node_to_network, data: [@add_node_any ||| @option_high_power]})
     {:noreply, state |> add_command(command)}
@@ -232,6 +232,9 @@ defmodule ZWave.ZStick do
   def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, _suc_node_id, _checksum>>, state) do
     state
   end
+
+  # def process_message(<<@sof, _length, @response, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_adding_slave, node_id, length, basic_class, generic_class, specific_class, command_classes:size(8 * length - 24), _checksum>>, state) do
+  # end
 
   def process_message(message, state) do
     Logger.debug "Unknown message: #{message |> inspect}"
