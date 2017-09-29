@@ -15,11 +15,18 @@ defmodule Web.Router do
 
   scope "/", Web do
     pipe_through :browser # Use the default browser stack
+    get "/", DashboardController, :index
 
-    get "/", PageController, :index
-    post "/turn_on", PageController, :turn_on
-    post "/turn_off", PageController, :turn_off
-    post "/start_network", PageController, :start_network
+    get "/networks", NetworksController, :index
+    post "/networks/start", NetworksController, :start_network
+
+    get "/scenes", ScenesController, :index
+
+    get "/dashboard", DashboardController, :index
+    post "/turn_on", DashboardController, :turn_on
+    post "/do_command", DashboardController, :do_command
+    post "/turn_off", DashboardController, :turn_off
+    post "/set_value", DashboardController, :set_value
   end
 
   # Other scopes may use custom stacks.
