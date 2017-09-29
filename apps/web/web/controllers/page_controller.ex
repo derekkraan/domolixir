@@ -7,16 +7,16 @@ defmodule Web.PageController do
 
   def turn_on(conn, params) do
     Process.send(params["node"] |> String.to_existing_atom, {:set_level, 0x63, 0x02}, [])
-    render conn, "index.html"
+    redirect conn, to: "/"
   end
 
   def turn_off(conn, params) do
     Process.send(params["node"] |> String.to_existing_atom, {:set_level, 0x00, 0x02}, [])
-    render conn, "index.html"
+    redirect conn, to: "/"
   end
 
   def start_network(conn, params) do
     Domo.Manager.start(params["network"])
-    render conn, "index.html"
+    redirect conn, to: "/"
   end
 end
