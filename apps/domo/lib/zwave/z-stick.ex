@@ -111,8 +111,13 @@ defmodule ZWave.ZStick do
     end
   end
 
+  @tick_interval 10
+  @command_timeout_interval 2000
+
   def exec_command(state = %State{current_command: nil}), do: state
   def exec_command(state) do
+    Process.send_after(self(), {:command_timeout, state.current_command}, @command_timeout_interval)
+
     send_msg(state.current_command, state.usb_zstick_pid)
 
     if(ZWave.Msg.required_response?(state.current_command, nil)) do
@@ -121,8 +126,6 @@ defmodule ZWave.ZStick do
       state
     end
   end
-
-  @tick_interval 10
 
   def handle_info(:tick, state = %State{command_queue: {[], []}, current_command: nil}), do: noop_tick(state)
   def handle_info(:tick, state = %State{current_command: current_command}) when not is_nil(current_command), do: noop_tick(state)
@@ -140,6 +143,12 @@ defmodule ZWave.ZStick do
     Process.send_after(self(), :tick, @tick_interval)
     {:noreply, state}
   end
+
+  def handle_info({:command_timeout, command}, state = %{current_command: command}) do
+    Logger.error "timeout #{command |> inspect} after #{@command_timeout_interval}"
+    {:noreply, %State{state | current_command: nil}}
+  end
+  def handle_info({:command_timeout, _command}, state), do: {:noreply, state}
 
   def add_command(state, command) do
     %State{state | command_queue: :queue.in(command, state.command_queue)}

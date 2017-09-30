@@ -28,5 +28,7 @@ defmodule ZWave.CommandClasses do
 end
 
 defmodule ZWave.Unsupported do
+  require Logger
   def commands, do: []
+  def message_from_zstick(msg), do: Logger.error "message from ZStick to unsupported command class: #{msg |> inspect}"
 end

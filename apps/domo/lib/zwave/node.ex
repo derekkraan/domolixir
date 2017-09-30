@@ -16,6 +16,7 @@ defmodule ZWave.Node do
     :command_classes,
     :generic_label,
     :specific_label,
+    :number_association_groups,
   ]
 
   def start_link(name, node_id) do
@@ -65,7 +66,15 @@ defmodule ZWave.Node do
     {:noreply, state}
   end
 
-  def handle_info({:update_state, new_state}, state) do
+  def handle_info({:update_state, %ZWave.Node{number_association_groups: number_association_groups}}, state) do
+    %{controller_node_id: controller_node_id} = GenServer.call(state.name, :get_information)
+    (1..number_association_groups) |> Enum.each(fn(group_id) ->
+      Logger.debug "setting association #{group_id}"
+      ZWave.CommandClasses.dispatch_command({:association_set, controller_node_id, group_id}, state.node_id) |> do_cmd(state)
+    end)
+    {:noreply, %ZWave.Node{state | number_association_groups: number_association_groups}}
+  end
+  def handle_info({:update_state, new_state = %ZWave.Node{}}, state) do
     {:noreply, state |> Map.merge(new_state)}
   end
 
