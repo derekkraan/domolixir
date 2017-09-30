@@ -13,7 +13,9 @@ defmodule ZWave.ZStick do
     :node_bitfield,
     :current_callback_id,
     :callback_commands,
+    :alive,
     :label,
+    :command_classes,
   ]
 
   def start(usb_device, name) do
@@ -39,11 +41,11 @@ defmodule ZWave.ZStick do
   end
 
   def handle_call(:get_commands, _from, state) do
-    {:reply, [[:add_device], [:remove_device]], state}
+    {:reply, [[:controller, :add_device], [:controller, :remove_device]], state}
   end
 
   def init({usb_device, name}) do
-    state = %State{name: name, label: name}
+    state = %State{name: name, label: name, alive: true, command_classes: []}
     {:ok, usb_zstick_pid} = ZStick.UART.connect(usb_device)
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
@@ -140,8 +142,6 @@ defmodule ZWave.ZStick do
   end
 
   def add_command(state, command) do
-    # {state, command} = add_callback_id(state, command)
-    Logger.debug "ADDING COMMAND"
     %State{state | command_queue: :queue.in(command, state.command_queue)}
   end
 
@@ -173,11 +173,17 @@ defmodule ZWave.ZStick do
 
   defp send_msg(msg, pid) do
     msg
-    |> ZWave.Logger.log
+    |> log_maybe
     |> ZWave.Msg.prepare
     |> log_msg
     |> ZStick.UART.write(pid)
   end
+
+  def log_maybe(msg = %{function: @func_id_zw_send_data, data: [0x10, _length, _command_class, 0x05 | _rest]}) do
+    Logger.debug "REQUESTING ASSOCIATIONS FOR NODE 16 #{msg |> inspect}"
+    msg
+  end
+  def log_maybe(msg), do: msg
 
   def log_msg(msg) do
     Logger.debug "SENDING  #{msg |> inspect}"
@@ -215,12 +221,17 @@ defmodule ZWave.ZStick do
   end
 
   def process_message(<<@ack>>, state) do
-    Logger.debug "ACK received"
     state
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_send_data, 0, rest::binary>>, state) do
-    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error}, [])
+  def process_message(<<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>, state) do
+    # IO.inspect "ERROR - #{state.current_command.target_node_id |> inspect}"
+    # Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error}, [])
+    state
+  end
+
+  def process_message(msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>, state) do
+    # Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
 

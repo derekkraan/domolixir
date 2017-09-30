@@ -73,6 +73,9 @@ defmodule ZWave.Constants do
       @ack 0x06
       @nak 0x15
       @can 0x18
+
+      @command_class_basic 0x20
+      @command_class_switch_multilevel 0x26
     end
   end
 end

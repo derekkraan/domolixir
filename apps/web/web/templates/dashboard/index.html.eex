@@ -7,7 +7,7 @@
       <%= for command <- commands do %>
         <div class="command">
           <p><%= command |> Enum.take(2) |> Enum.map(&to_string/1) |> Enum.map(fn(str) -> String.replace(str, "_", " ") end)|> Enum.map(&String.capitalize/1) |> Enum.join(" ") %></p>
-          <% [type, action | args] = command %>
+          <% [action | args] = command %>
           <%= form_tag("/do_command?#{%{node: node, command: action} |> URI.encode_query}", method: :post) do %>
             <%= for arg <- args do %>
               <label><%= arg %>
