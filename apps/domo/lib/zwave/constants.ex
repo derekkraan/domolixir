@@ -28,6 +28,8 @@ defmodule ZWave.Constants do
 
       @func_id_zw_send_data 0x13
 
+      @func_id_application_command_handler 0x04
+
       @request 0x00
       @response 0x01
 
@@ -76,6 +78,7 @@ defmodule ZWave.Constants do
 
       @command_class_basic 0x20
       @command_class_switch_multilevel 0x26
+      @command_class_association 0x85
     end
   end
 end

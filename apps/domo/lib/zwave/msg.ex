@@ -1,5 +1,5 @@
 defmodule ZWave.Msg do
-  defstruct [:type, :function, :data, :callback_id, :target_node_id]
+  defstruct [:type, :function, :data, :callback_id, :target_node_id, :expected_response]
 
   use ZWave.Constants
 
@@ -52,6 +52,9 @@ defmodule ZWave.Msg do
   # so we have to assume that a response is talking
   # about the current command, so block until this is
   # received.
+  def required_response?(%ZWave.Msg{expected_response: expected_response}, <<@sof, _length, _req_res, expected_response, _rest::binary>>) when not is_nil(expected_response), do: true
+  def required_response?(%ZWave.Msg{expected_response: expected_response}, _) when not is_nil(expected_response), do: false
+
   def required_response?(%ZWave.Msg{function: @func_id_zw_get_node_protocol_info}, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _rest::binary>>), do: true
   def required_response?(%ZWave.Msg{function: @func_id_zw_get_node_protocol_info}, _resp), do: false
 

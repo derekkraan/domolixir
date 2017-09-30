@@ -49,22 +49,24 @@ defmodule ZWave.Node do
   @association_cmd_groupings_get 0x05
 
   defp request_association_groupings(state) do
-    use Bitwise
-
-    state.command_classes |> Enum.each(fn(command_class) ->
-      %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x02, command_class, @association_cmd_groupings_get, @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore], target_node_id: state.node_id}
-      |> ZWave.ZStick.queue_command(state.name)
-    end)
+    ZWave.CommandClasses.dispatch_command({:association_groupings_get}, state.node_id)
+    |> do_cmd(state)
     state
   end
 
+  #
   # -- messages from controller --
+  #
   def handle_info({:command, cmd}, state) do
-    case ZWave.CommandClasses.dispatch_command(cmd, state.node_id, state.command_classes) do
+    case ZWave.CommandClasses.dispatch_command(cmd, state.node_id) do
       nil -> nil
       cmd -> do_cmd(cmd, state)
     end
     {:noreply, state}
+  end
+
+  def handle_info({:update_state, new_state}, state) do
+    {:noreply, state |> Map.merge(new_state)}
   end
 
   def handle_call(:get_information, _from, state) do
@@ -79,10 +81,13 @@ defmodule ZWave.Node do
   end
 
   def do_cmd(cmd, state) do
-    %ZWave.Msg{cmd | target_node_id: state.node_id} |> ZWave.ZStick.queue_command(state.name)
+    %ZWave.Msg{cmd | target_node_id: state.node_id}
+    |> ZWave.ZStick.queue_command(state.name)
   end
 
+  #
   # -- messages from ZStick --
+  #
   def handle_info({:message_from_zstick, message}, state) do
     state = ZWave.Node.process_message(message, state)
     {:noreply, state}

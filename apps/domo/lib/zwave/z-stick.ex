@@ -272,8 +272,14 @@ defmodule ZWave.ZStick do
     state
   end
 
+  def process_message(msg = <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id, _sublength, command_class, _rest::binary>>, state) do
+    update = ZWave.CommandClasses.command_class(command_class).message_from_zstick(msg)
+    Process.send(ZWave.Node.node_name(state.name, node_id), {:update_state, update}, [])
+    state
+  end
+
   def process_message(message, state) do
-    Logger.debug "Unknown message: #{message |> inspect}"
+    Logger.error "UNKNOWN MESSAGE: #{message |> inspect}"
     state
   end
 end
