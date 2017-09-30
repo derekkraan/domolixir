@@ -58,19 +58,7 @@ defmodule ZWave.Node do
     state
   end
 
-  def handle_info({:message_from_zstick, message}, state) do
-    state = ZWave.Node.process_message(message, state)
-    {:noreply, state}
-  end
-
-  def handle_info({:zstick_send_error}, state = %{total_errors: total_errors}) when total_errors > 2 do
-    {:noreply, %{state | alive: false, total_errors: state.total_errors + 1}}
-  end
-  def handle_info({:zstick_send_error}, state) do
-    request_state(state)
-    {:noreply, %{state | total_errors: state.total_errors + 1}}
-  end
-
+  # -- messages from controller --
   def handle_info({:command, cmd}, state) do
     case ZWave.CommandClasses.dispatch_command(cmd, state.node_id, state.command_classes) do
       nil -> nil
@@ -90,14 +78,22 @@ defmodule ZWave.Node do
     {:reply, commands, state}
   end
 
-  # def handle_info({:set_level, level, duration}, state) do
-  #   %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [state.node_id, 0x04, @command_class_switch_multilevel, @switchmultilevelcmd_set, level, duration]} |> do_cmd(state)
-  #   {:noreply, state}
-  # end
-
   def do_cmd(cmd, state) do
-    Logger.debug "SENDING COMMAND #{cmd |> inspect}"
     %ZWave.Msg{cmd | target_node_id: state.node_id} |> ZWave.ZStick.queue_command(state.name)
+  end
+
+  # -- messages from ZStick --
+  def handle_info({:message_from_zstick, message}, state) do
+    state = ZWave.Node.process_message(message, state)
+    {:noreply, state}
+  end
+
+  def handle_info({:zstick_send_error}, state = %{total_errors: total_errors}) when total_errors > 2 do
+    {:noreply, %{state | alive: false, total_errors: state.total_errors + 1}}
+  end
+  def handle_info({:zstick_send_error}, state) do
+    request_state(state)
+    {:noreply, %{state | total_errors: state.total_errors + 1}}
   end
 
   def process_message(<<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _cap, _freq, _some, _basic, 0, _rest::binary>>, state) do
@@ -113,16 +109,10 @@ defmodule ZWave.Node do
       specific_class: specific_class,
     }
     |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
-    |> IO.inspect
     |> request_association_groupings()
   end
 
   def process_message(msg, state) do
     state
   end
-
-  def basic_class(%{basic_class: 1}), do: :controller
-  def basic_class(%{basic_class: 2}), do: :static_controller
-  def basic_class(%{basic_class: 3}), do: :slave
-  def basic_class(%{basic_class: 4}), do: :routing_slave
 end
