@@ -4,6 +4,10 @@ defmodule ZWave.SwitchMultilevel do
 
   use ZWave.Constants
 
+  def start_link(name, node_id), do: nil
+
+  def process_message(_, _, _), do: nil
+
   @switchmultilevelcmd_set 0x01
   @switchmultilevelcmd_get 0x02
   @switchmultilevelcmd_report 0x03

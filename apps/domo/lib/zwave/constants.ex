@@ -51,6 +51,8 @@ defmodule ZWave.Constants do
       @transmit_option_no_route 0x10
       @transmit_option_explore 0x20
 
+      @transmit_options 0x25 # @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore
+
       @option_high_power 0x80
       @option_nwi 0x40
 
@@ -79,6 +81,12 @@ defmodule ZWave.Constants do
       @command_class_basic 0x20
       @command_class_switch_multilevel 0x26
       @command_class_association 0x85
+      @command_class_wake_up 0x84
+
+      @request_flag_static    0x00000001
+      @request_flag_session   0x00000002
+      @request_flag_dynamic   0x00000004
+      @request_flag_afterMark 0x00000008
     end
   end
 end

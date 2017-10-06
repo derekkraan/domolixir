@@ -5,12 +5,16 @@ defmodule ZWave.Association do
   use ZWave.Constants
   require Logger
 
+  def process_message(_, _, _), do: nil
+
   @associationcmd_set 0x01
   @associationcmd_get 0x02
   @associationcmd_report 0x03
   @associationcmd_remove 0x04
   @associationcmd_groupingsget 0x05
   @associationcmd_groupingsreport 0x06
+
+  def start_link(name, node_id), do: nil
 
   def commands, do: [
     [:association_groupings_get],

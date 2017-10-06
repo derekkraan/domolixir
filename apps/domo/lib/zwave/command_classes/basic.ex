@@ -5,6 +5,8 @@ defmodule ZWave.Basic do
 
   use ZWave.Constants
 
+  def start_link(name, node_id), do: nil
+
   @basic_set 0x01
   @basic_get 0x02
   @basic_report 0x03
@@ -21,4 +23,6 @@ defmodule ZWave.Basic do
   def handle({:basic_get}, node_id) do
     %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x02, @command_class, @basic_get], target_node_id: node_id}
   end
+
+  def process_message(_, _, _), do: nil
 end

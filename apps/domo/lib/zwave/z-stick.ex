@@ -41,7 +41,7 @@ defmodule ZWave.ZStick do
   end
 
   def handle_call(:get_commands, _from, state) do
-    {:reply, [[:controller, :add_device], [:controller, :remove_device]], state}
+    {:reply, [[:add_device], [:remove_device]], state}
   end
 
   def init({usb_device, name}) do
@@ -68,14 +68,14 @@ defmodule ZWave.ZStick do
     {:noreply, handle_message_from_zstick(message, state)}
   end
 
-  def handle_info({:remove_device}, state) do
+  def handle_info({:command, {:remove_device}}, state) do
     use Bitwise
 
     {state, command} = add_callback_id(state, %ZWave.Msg{type: @request, function: @func_id_zw_remove_node_from_network, data: [@remove_node_any]})
     {:noreply, state |> add_command(command)}
   end
 
-  def handle_info({:add_device}, state) do
+  def handle_info({:command, {:add_device}}, state) do
     use Bitwise
     {state, command} = add_callback_id(state, %ZWave.Msg{type: @request, function: @func_id_zw_add_node_to_network, data: [@add_node_any ||| @option_high_power]})
     {:noreply, state |> add_command(command)}
@@ -102,7 +102,7 @@ defmodule ZWave.ZStick do
       send_msg(<<@ack>>, state.usb_zstick_pid)
     end
 
-    state = process_message(message, state)
+    state = process_message(state, message)
 
     if ZWave.Msg.required_response?(state.current_command, message) do
       %State{state | current_command: nil}
@@ -112,7 +112,7 @@ defmodule ZWave.ZStick do
   end
 
   @tick_interval 10
-  @command_timeout_interval 5000
+  @command_timeout_interval 1000
 
   def exec_command(state = %State{current_command: nil}), do: state
   def exec_command(state) do
@@ -195,7 +195,7 @@ defmodule ZWave.ZStick do
     msg
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>, state) do
+  def process_message(state, <<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>) do
     Logger.debug "GOT SERIAL API CAPABILITIES"
     state
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_random})
@@ -203,87 +203,86 @@ defmodule ZWave.ZStick do
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_serial_api_appl_node_information, data: [state.controller_node_id], target_node_id: state.controller_node_id})
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8), _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes), _something, _else, _checksum>>, state) do
+  def process_message(state, <<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8), _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes), _something, _else, _checksum>>) do
     Logger.debug "GOT SERIAL API INIT DATA"
     Logger.debug "node bitfield: #{node_bitfield |> inspect}"
 
     ZWave.NodeBitmaskParser.nodes_in_bytes(<<node_bitfield::size(@max_num_nodes)>>)
-    |> Enum.each(fn(node_id) -> ZWave.Node.start(state.name, node_id) end)
+    |> Enum.each(fn(node_id) -> :ok = ZWave.Node.start(state.name, node_id) end)
 
     state
   end
 
-  def process_message(msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>, state) do
+  def process_message(state, msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>) do
     Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_get_random, random, _checksum>>, state), do: state
+  def process_message(state, <<@sof, _length, @response, @func_id_zw_get_random, random, _checksum>>), do: state
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_memory_get_id, _home_id::size(32), controller_node_id, _checksum>>, state) do
+  def process_message(state, <<@sof, _length, @response, @func_id_zw_memory_get_id, _home_id::size(32), controller_node_id, _checksum>>) do
     Logger.debug "controller node id: #{controller_node_id |> inspect}"
     %State{state | controller_node_id: controller_node_id}
   end
 
-  def process_message(<<@ack>>, state) do
+  def process_message(state, <<@ack>>), do: state
+
+  # def process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>) do
+  #   # IO.inspect "ERROR - #{state.current_command.target_node_id |> inspect}"
+  #   # Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error}, [])
+  #   state
+  # end
+
+  def process_message(state = %{current_command: current_command}, msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>) when not is_nil(current_command) do
+    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>, state) do
-    # IO.inspect "ERROR - #{state.current_command.target_node_id |> inspect}"
-    # Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error}, [])
-    state
-  end
-
-  def process_message(msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>, state) do
-    # Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
-    state
-  end
-
-  def process_message(<<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>, state) do
+  def process_message(state, <<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>) do
     Logger.debug "SUC Node id successfully set"
     state
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>, state) do
+  def process_message(state, <<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>) do
     Logger.debug "Setting ourselves as SIS"
     state
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]})
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_set_suc_node_id, data: [1, 0, state.controller_node_id], target_node_id: state.controller_node_id})
   end
 
-  def process_message(<<@sof, _length, @response, @func_id_zw_get_suc_node_id, _suc_node_id, _checksum>>, state) do
+  def process_message(state, <<@sof, _length, @response, @func_id_zw_get_suc_node_id, _suc_node_id, _checksum>>) do
     state
   end
 
-  def process_message(<<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_failed, _rest::binary>>, state) do
+  def process_message(state, <<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_failed, _rest::binary>>) do
     use Bitwise
     state
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_add_node_to_network, data: [@add_node_stop]})
   end
 
-  def process_message(<<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_adding_slave, node_id, _rest::binary>>, state) do
+  def process_message(state, <<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id, @add_node_status_adding_slave, node_id, _rest::binary>>) do
     ZWave.Node.start(state.name, node_id)
     state
   end
 
-  def process_message(<<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, 0, _rest::binary>>, state) do
+  def process_message(state, <<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, 0, _rest::binary>>) do
     Logger.debug "non-connected device removed"
     state
   end
 
-  def process_message(<<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, node_id, _rest::binary>>, state) do
+  def process_message(state, <<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id, @remove_node_status_removing_slave, node_id, _rest::binary>>) do
     ZWave.Node.stop(state.name, node_id)
     state
   end
 
-  def process_message(msg = <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id, _sublength, command_class, _rest::binary>>, state) do
-    update = ZWave.CommandClasses.command_class(command_class).message_from_zstick(msg)
-    Process.send(ZWave.Node.node_name(state.name, node_id), {:update_state, update}, [])
+  def process_message(state, msg = <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id, _sublength, command_class, _rest::binary>>) do
+    # update = ZWave.CommandClasses.command_class(command_class).message_from_zstick(msg)
+    # Process.send(ZWave.Node.node_name(state.name, node_id), {:update_state, update}, [])
+    Process.send(ZWave.Node.node_name(state.name, node_id), {:message_from_zstick, msg})
     state
   end
 
-  def process_message(message, state) do
+  def process_message(state, message) do
     Logger.error "UNKNOWN MESSAGE: #{message |> inspect}"
     state
   end

@@ -12,7 +12,7 @@ defmodule ZStick.Reader do
     read(usb_zstick_pid, zstick_pid)
   end
 
-  @read_wait 10 #ms
+  @read_wait 20 #ms
 
   def read(usb_zstick_pid, zstick_pid, msg_buffer\\<<>>)
   def read(usb_zstick_pid, zstick_pid, msg_buffer) do
