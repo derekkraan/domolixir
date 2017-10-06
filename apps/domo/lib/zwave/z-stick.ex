@@ -112,7 +112,7 @@ defmodule ZWave.ZStick do
   end
 
   @tick_interval 10
-  @command_timeout_interval 2000
+  @command_timeout_interval 5000
 
   def exec_command(state = %State{current_command: nil}), do: state
   def exec_command(state) do
@@ -188,10 +188,6 @@ defmodule ZWave.ZStick do
     |> ZStick.UART.write(pid)
   end
 
-  def log_maybe(msg = %{function: @func_id_zw_send_data, data: [0x10, _length, _command_class, 0x05 | _rest]}) do
-    Logger.debug "REQUESTING ASSOCIATIONS FOR NODE 16 #{msg |> inspect}"
-    msg
-  end
   def log_maybe(msg), do: msg
 
   def log_msg(msg) do
