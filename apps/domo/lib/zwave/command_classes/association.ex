@@ -45,7 +45,21 @@ defmodule ZWave.Association do
     %ZWave.Msg{type: @request, function: @func_id_zw_send_data, callback_id: callback_id, data: [node_id, 0x02, @command_class, @associationcmd_groupingsget, ZWave.ZStick.transmit_options], target_node_id: node_id, expected_response: @func_id_application_command_handler}
   end
 
-  def handle({:association_set, to_node_id, group_id}, node_id) do
+  def add_associations(state = %{associations_initialized: true}), do: state
+  def add_associations(state) do
+    %{controller_node_id: controller_node_id} = GenServer.call(state.name, :get_information)
+    (1..state.number_association_groups) |> Enum.each(fn(group_id) ->
+      Logger.debug "setting association #{group_id}"
+      association_set_command(controller_node_id, group_id, state.node_id) |> ZWave.ZStick.queue_command(state.name)
+    end)
+    state
+  end
+
+  # def handle({:association_set, to_node_id, group_id}, node_id) do
+  #   association_set_command(to_node_id, group_id, node_id) |> ZWave.ZStick.queue_command(name)
+  # end
+
+  def association_set_command(to_node_id, group_id, node_id) do
     %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x04, @command_class, @associationcmd_set, group_id, to_node_id], target_node_id: node_id}
   end
 
@@ -57,7 +71,7 @@ defmodule ZWave.Association do
 
   def private_process_message(state, <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id, 3, @command_class, @associationcmd_groupingsreport, num_groups, _checksum>>) do
     Logger.debug "Number of association groups for #{node_id} is #{num_groups}"
-    %State{state | number_association_groups: num_groups}
+    %State{state | number_association_groups: num_groups} |> add_associations()
   end
 
   def private_process_message(state, _message), do: state

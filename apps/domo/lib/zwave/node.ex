@@ -122,7 +122,7 @@ defmodule ZWave.Node do
     {:noreply, %{state | alive: false, total_errors: state.total_errors + 1}}
   end
   def handle_info({:zstick_send_error, command}, state) do
-    request_state(state)
+    command |> ZWave.ZStick.queue_command(state.name)
     {:noreply, %{state | total_errors: state.total_errors + 1}}
   end
 

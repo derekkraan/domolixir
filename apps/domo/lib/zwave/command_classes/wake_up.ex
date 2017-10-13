@@ -44,7 +44,7 @@ defmodule ZWave.WakeUp do
   end
 
   def wakeup_no_more_information_command(node_id) do
-    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x02, @command_class, @wakeup_cmd_no_more_information, @transmit_options], target_node_id: node_id, expected_response: @func_id_application_command_handler}
+    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x02, @command_class, @wakeup_cmd_no_more_information, @transmit_options], target_node_id: node_id, expected_response: @func_id_zw_send_data}
   end
 
   def wakeup_command_interval_report(node_id) do
