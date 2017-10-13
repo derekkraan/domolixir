@@ -126,6 +126,15 @@ defmodule ZWave.Node do
     {:noreply, %{state | total_errors: state.total_errors + 1}}
   end
 
+  def process_message(state, <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id, _length, command_class, _rest::binary>>) do
+    if !Enum.member?(state.command_classes, command_class) do
+      %ZWave.Node{state | command_classes: [command_class | state.command_classes]}
+      |> add_command_class_modules([command_class])
+    else
+      state
+    end
+  end
+
   def process_message(state, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _cap, _freq, _some, _basic, 0, _rest::binary>>) do
     %{state | alive: false}
   end
