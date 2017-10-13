@@ -24,6 +24,7 @@ defmodule ZWave.ZStick do
     worker_spec = [worker(__MODULE__, [usb_device, name], [id: name])]
 
     supervisor_spec = supervisor(Domo.NetworkSupervisor, [worker_spec, [name: network_supervisor_name(name)]], [id: network_supervisor_name(name)])
+
     case Domo.SystemSupervisor.start_child(supervisor_spec) do
       {:ok, _child} -> :ok
       {:error, error} -> IO.inspect(error)
@@ -213,7 +214,7 @@ defmodule ZWave.ZStick do
     state
   end
 
-  def process_message(state, msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>) do
+  def process_message(state = %{current_command: current_command}, msg = <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, _frequent_listening, _something, device_classes::size(24), _checksum>>) when not is_nil(current_command) do
     Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
@@ -227,11 +228,11 @@ defmodule ZWave.ZStick do
 
   def process_message(state, <<@ack>>), do: state
 
-  # def process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>) do
-  #   # IO.inspect "ERROR - #{state.current_command.target_node_id |> inspect}"
-  #   # Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error}, [])
-  #   state
-  # end
+  def process_message(state = %{current_command: current_command}, <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>) when not is_nil(current_command) do
+    IO.inspect "ERROR - #{state.current_command.target_node_id |> inspect}"
+    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error, state.current_command}, [])
+    %{state | current_command: nil}
+  end
 
   def process_message(state = %{current_command: current_command}, msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>) when not is_nil(current_command) do
     Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
@@ -278,7 +279,7 @@ defmodule ZWave.ZStick do
   def process_message(state, msg = <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id, _sublength, command_class, _rest::binary>>) do
     # update = ZWave.CommandClasses.command_class(command_class).message_from_zstick(msg)
     # Process.send(ZWave.Node.node_name(state.name, node_id), {:update_state, update}, [])
-    Process.send(ZWave.Node.node_name(state.name, node_id), {:message_from_zstick, msg})
+    Process.send(ZWave.Node.node_name(state.name, node_id), {:message_from_zstick, msg}, [])
     state
   end
 

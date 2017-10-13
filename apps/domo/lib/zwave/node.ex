@@ -19,6 +19,7 @@ defmodule ZWave.Node do
     :command_class_modules,
     :generic_label,
     :specific_label,
+    :label,
     :number_association_groups,
   ]
 
@@ -46,7 +47,7 @@ defmodule ZWave.Node do
     import Supervisor.Spec
     case Supervisor.start_child(ZWave.ZStick.network_supervisor_name(controller_name), worker(ZWave.Node, [controller_name, node_id], [id: ZWave.Node.node_name(controller_name, node_id)])) do
       {:ok, _child} -> :ok
-      {:error, :already_started} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
       error -> error
     end
   end
@@ -82,20 +83,8 @@ defmodule ZWave.Node do
     {:noreply, state}
   end
 
-  def handle_info({:update_state, %ZWave.Node{number_association_groups: number_association_groups}}, state) do
-    %{controller_node_id: controller_node_id} = GenServer.call(state.name, :get_information)
-    (1..number_association_groups) |> Enum.each(fn(group_id) ->
-      Logger.debug "setting association #{group_id}"
-      ZWave.CommandClasses.dispatch_command({:association_set, controller_node_id, group_id}, state.node_id) |> do_cmd(state)
-    end)
-    {:noreply, %ZWave.Node{state | number_association_groups: number_association_groups}}
-  end
-  def handle_info({:update_state, new_state = %ZWave.Node{}}, state) do
-    {:noreply, state |> Map.merge(new_state)}
-  end
-
   def handle_call(:get_information, _from, state) do
-    {:reply, state, state}
+    {:reply, %{state | label: state.specific_label}, state}
   end
 
   def handle_call(:get_commands, _from, state) do
@@ -121,10 +110,14 @@ defmodule ZWave.Node do
     {:noreply, state}
   end
 
-  def handle_info({:zstick_send_error}, state = %{total_errors: total_errors}) when total_errors > 2 do
+  def handle_info({:zstick_send_error, command}, state = %{listening: false}) do
+    Process.send(ZWave.WakeUp.process_name(state.name, state.node_id), {:queue_command, command}, [])
+    {:noreply, state}
+  end
+  def handle_info({:zstick_send_error, command}, state = %{total_errors: total_errors}) when total_errors > 2 do
     {:noreply, %{state | alive: false, total_errors: state.total_errors + 1}}
   end
-  def handle_info({:zstick_send_error}, state) do
+  def handle_info({:zstick_send_error, command}, state) do
     request_state(state)
     {:noreply, %{state | total_errors: state.total_errors + 1}}
   end
@@ -135,6 +128,8 @@ defmodule ZWave.Node do
 
   def process_message(state, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>) do
     use Bitwise
+
+    ZWave.NoOperation.noop_command(state.node_id) |> ZWave.ZStick.queue_command(state.name)
 
     %ZWave.Node{state |
       alive: true,
@@ -147,9 +142,12 @@ defmodule ZWave.Node do
     }
     |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
     |> ZWave.WakeUp.add_command_class()
+    |> ZWave.NoOperation.add_command_class()
     |> add_command_class_modules()
     |> start_command_class_modules()
   end
+
+  # def process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 0
 
   def process_message(state, _msg), do: state
 

@@ -7,7 +7,7 @@ defmodule ZWave.Msg do
     msg
     [@sof, 0x00, type, function]
     |> add_data(data)
-    |> add_callback(callback_id)
+    |> add_callback_id(callback_id)
     |> add_length()
     |> add_checksum()
     |> to_binary()
@@ -20,8 +20,8 @@ defmodule ZWave.Msg do
     msg ++ data
   end
 
-  defp add_callback(msg, nil), do: msg
-  defp add_callback(msg, callback_id), do: msg ++ [callback_id]
+  defp add_callback_id(msg, nil), do: msg
+  defp add_callback_id(msg, callback_id), do: msg ++ [callback_id]
 
   defp add_checksum(msg = [sof | bytes]) do
     msg ++ [calc_checksum(bytes)]
@@ -52,6 +52,9 @@ defmodule ZWave.Msg do
   # so we have to assume that a response is talking
   # about the current command, so block until this is
   # received.
+  def required_response?(%ZWave.Msg{callback_id: callback_id}, <<@sof, _length, _req_res, _respons, callback_id, _rest::binary>>) when not is_nil(callback_id), do: true
+  def required_response?(%ZWave.Msg{callback_id: callback_id}, _msg) when not is_nil(callback_id), do: false
+
   def required_response?(%ZWave.Msg{expected_response: expected_response}, <<@sof, _length, _req_res, expected_response, _rest::binary>>) when not is_nil(expected_response), do: true
   def required_response?(%ZWave.Msg{expected_response: expected_response}, _) when not is_nil(expected_response), do: false
 
