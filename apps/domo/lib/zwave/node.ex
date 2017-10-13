@@ -111,23 +111,30 @@ defmodule ZWave.Node do
     state.command_class_modules |> Enum.map(fn(module) ->
       module.process_message(state.name, state.node_id, message)
     end)
-    {:noreply, state}
+    {:noreply, %{state | total_errors: 0}}
   end
 
   def handle_info({:zstick_send_error, command}, state = %{listening: 0}) do
     Process.send(ZWave.WakeUp.process_name(state.name, state.node_id), {:queue_command, command}, [])
     {:noreply, state}
   end
-  def handle_info({:zstick_send_error, command}, state = %{total_errors: total_errors}) when total_errors > 2 do
+  def handle_info({:zstick_send_error, command}, state = %{total_errors: total_errors}) when total_errors > 10 do
     {:noreply, %{state | alive: false, total_errors: state.total_errors + 1}}
   end
   def handle_info({:zstick_send_error, command}, state) do
-    command |> ZWave.ZStick.queue_command(state.name)
+    Process.send_after(self(), {:retry_message, command}, 100, [])
     {:noreply, %{state | total_errors: state.total_errors + 1}}
   end
 
+  def handle_info({:retry_message, command}, state) do
+    command |> ZWave.ZStick.queue_command(state.name)
+    {:noreply, state}
+  end
+
   def process_message(state, <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id, _length, command_class, _rest::binary>>) do
+    IO.inspect("ADDING CMDCLASS?")
     if !Enum.member?(state.command_classes, command_class) do
+      IO.inspect("ADDING CMDCLASS!")
       %ZWave.Node{state | command_classes: [command_class | state.command_classes]}
       |> add_command_class_modules([command_class])
     else
