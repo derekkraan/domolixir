@@ -25,7 +25,7 @@ defmodule ZWave.Association do
 
   def init({name, node_id}) do
     state = %State{} |> Map.merge(@init_state) |> Map.merge(%{node_id: node_id, name: name})
-    association_groupings_get_command(node_id) |> ZWave.ZStick.queue_command(name)
+    association_groupings_get_command(name, node_id) |> ZWave.ZStick.queue_command(name)
     {:ok, state}
   end
 
@@ -38,10 +38,11 @@ defmodule ZWave.Association do
     [:association_set, :to_node_id, :group_id],
   ]
 
-  def handle({:association_groupings_get}, node_id), do: association_groupings_get_command(node_id)
+  # def handle({:association_groupings_get}, node_id), do: association_groupings_get_command(node_id)
 
-  def association_groupings_get_command(node_id) do
-    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x02, @command_class, @associationcmd_groupingsget], target_node_id: node_id, expected_response: @func_id_application_command_handler}
+  def association_groupings_get_command(name, node_id) do
+    callback_id = GenServer.call(name, :get_callback_id)
+    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, callback_id: callback_id, data: [node_id, 0x02, @command_class, @associationcmd_groupingsget, ZWave.ZStick.transmit_options], target_node_id: node_id, expected_response: @func_id_application_command_handler}
   end
 
   def handle({:association_set, to_node_id, group_id}, node_id) do

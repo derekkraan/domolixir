@@ -18,6 +18,11 @@ defmodule ZWave.ZStick do
     :command_classes,
   ]
 
+  def transmit_options do
+    use Bitwise
+    @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore
+  end
+
   def start(usb_device, name) do
     import Supervisor.Spec, warn: false
 
@@ -38,6 +43,16 @@ defmodule ZWave.ZStick do
     GenServer.start_link(__MODULE__, {usb_device, name}, name: name) |> IO.inspect
   end
 
+  def handle_call(:get_callback_id, _from, state) do
+    next_id = next_callback_id(state.current_callback_id)
+    {:reply, next_id, %State{state | current_callback_id: next_id}}
+  end
+
+  def next_callback_id(current_callback_id) do
+    rem(current_callback_id + 1, 0xFF)
+    |> max(10)
+  end
+
   def handle_call(:get_information, _from, state) do
     {:reply, state, state}
   end
@@ -51,7 +66,7 @@ defmodule ZWave.ZStick do
     {:ok, usb_zstick_pid} = ZStick.UART.connect(usb_device)
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
-    state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil, current_callback_id: 1, callback_commands: %{}}
+    state = %{state | usb_zstick_pid: usb_zstick_pid, command_queue: :queue.new(), current_command: nil, current_callback_id: 10, callback_commands: %{}}
 
     Process.send_after(self(), :tick, 100)
 
@@ -231,7 +246,7 @@ defmodule ZWave.ZStick do
   def process_message(state, <<@ack>>), do: state
 
   def process_message(state = %{current_command: current_command}, <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>) when not is_nil(current_command) do
-    IO.inspect "ERROR - #{state.current_command.target_node_id |> inspect}"
+    Logger.error "ERROR - #{state.current_command.target_node_id |> inspect}"
     Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error, state.current_command}, [])
     %{state | current_command: nil}
   end

@@ -52,6 +52,7 @@ defmodule ZWave.Msg do
   # so we have to assume that a response is talking
   # about the current command, so block until this is
   # received.
+  def required_response?(%ZWave.Msg{function: @func_id_zw_send_data, data: [_node_id, _length, @command_class_association, _cmd]}, _resp), do: false
   def required_response?(%ZWave.Msg{callback_id: callback_id}, <<@sof, _length, _req_res, _respons, callback_id, _rest::binary>>) when not is_nil(callback_id), do: true
   def required_response?(%ZWave.Msg{callback_id: callback_id}, _msg) when not is_nil(callback_id), do: false
 

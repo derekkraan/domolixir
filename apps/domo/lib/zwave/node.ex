@@ -107,7 +107,7 @@ defmodule ZWave.Node do
   #
   def handle_info({:message_from_zstick, message}, state) do
     Logger.debug "GOT MESSAGE IN NODE #{message |> inspect}"
-    state = ZWave.Node.process_message(state, message)
+    state = process_message(state, message)
     state.command_class_modules |> Enum.map(fn(module) ->
       module.process_message(state.name, state.node_id, message)
     end)
@@ -152,8 +152,6 @@ defmodule ZWave.Node do
     |> add_command_class_modules()
     |> start_command_class_modules()
   end
-
-  # def process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 0
 
   def process_message(state, _msg), do: state
 
