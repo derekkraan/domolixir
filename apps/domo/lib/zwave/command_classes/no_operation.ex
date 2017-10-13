@@ -8,7 +8,7 @@ defmodule ZWave.NoOperation do
 
   def commands, do: []
 
-  def add_command_class(state), do: state |> Map.put(:command_clases, [@command_class | state.command_classes])
+  def add_command_class(state), do: state |> Map.put(:command_classes, [@command_class | state.command_classes])
   def process_message(_name, _node_id, _msg), do: nil
 
   def noop_command(node_id) do

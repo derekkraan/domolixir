@@ -21,6 +21,7 @@ defmodule ZWave.Node do
     :specific_label,
     :label,
     :number_association_groups,
+    :initialized,
   ]
 
   @init_state %{
@@ -28,6 +29,7 @@ defmodule ZWave.Node do
     total_errors: 0,
     command_classes: [],
     command_class_modules: [],
+    initialized: false,
   }
 
   @securityflag_security 0x01
@@ -40,7 +42,8 @@ defmodule ZWave.Node do
   @securityflag_optionalfunctionality 0x80
 
   def start_link(name, node_id) do
-    GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id))
+    Logger.debug "STARTING NODE #{node_id}"
+    GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id)) |> IO.inspect
   end
 
   def start(controller_name, node_id) do
@@ -48,7 +51,7 @@ defmodule ZWave.Node do
     case Supervisor.start_child(ZWave.ZStick.network_supervisor_name(controller_name), worker(ZWave.Node, [controller_name, node_id], [id: ZWave.Node.node_name(controller_name, node_id)])) do
       {:ok, _child} -> :ok
       {:error, {:already_started, _pid}} -> :ok
-      error -> error
+      error -> error |> IO.inspect
     end
   end
 
@@ -84,7 +87,7 @@ defmodule ZWave.Node do
   end
 
   def handle_call(:get_information, _from, state) do
-    {:reply, %{state | label: state.specific_label}, state}
+    {:reply, %{state | label: "#{state.node_id}: #{state.generic_label} #{state.specific_label}"}, state}
   end
 
   def handle_call(:get_commands, _from, state) do
@@ -103,6 +106,7 @@ defmodule ZWave.Node do
   # -- messages from ZStick --
   #
   def handle_info({:message_from_zstick, message}, state) do
+    Logger.debug "GOT MESSAGE IN NODE #{message |> inspect}"
     state = ZWave.Node.process_message(state, message)
     state.command_class_modules |> Enum.map(fn(module) ->
       module.process_message(state.name, state.node_id, message)
@@ -110,7 +114,7 @@ defmodule ZWave.Node do
     {:noreply, state}
   end
 
-  def handle_info({:zstick_send_error, command}, state = %{listening: false}) do
+  def handle_info({:zstick_send_error, command}, state = %{listening: 0}) do
     Process.send(ZWave.WakeUp.process_name(state.name, state.node_id), {:queue_command, command}, [])
     {:noreply, state}
   end
@@ -126,7 +130,7 @@ defmodule ZWave.Node do
     %{state | alive: false}
   end
 
-  def process_message(state, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>) do
+  def process_message(state = %{initialized: false}, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities, frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>) do
     use Bitwise
 
     ZWave.NoOperation.noop_command(state.node_id) |> ZWave.ZStick.queue_command(state.name)
@@ -139,10 +143,12 @@ defmodule ZWave.Node do
       basic_class: basic_class,
       generic_class: generic_class,
       specific_class: specific_class,
+      initialized: true,
     }
     |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
     |> ZWave.WakeUp.add_command_class()
     |> ZWave.NoOperation.add_command_class()
+    |> ZWave.Association.add_command_class()
     |> add_command_class_modules()
     |> start_command_class_modules()
   end

@@ -34,7 +34,8 @@ defmodule ZWave.ZStick do
   def network_supervisor_name(name), do: :"#{name}_network_supervisor"
 
   def start_link(usb_device, name) do
-    GenServer.start_link(__MODULE__, {usb_device, name}, name: name)
+    Logger.debug "STARTING ZSTICK"
+    GenServer.start_link(__MODULE__, {usb_device, name}, name: name) |> IO.inspect
   end
 
   def handle_call(:get_information, _from, state) do
@@ -147,6 +148,7 @@ defmodule ZWave.ZStick do
 
   def handle_info({:command_timeout, command}, state = %{current_command: command}) do
     Logger.error "timeout #{command |> inspect} after #{@command_timeout_interval}"
+    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error, state.current_command}, [])
     {:noreply, %State{state | current_command: nil}}
   end
   def handle_info({:command_timeout, _command}, state), do: {:noreply, state}
@@ -196,7 +198,7 @@ defmodule ZWave.ZStick do
     msg
   end
 
-  def process_message(state, <<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>) do
+  def process_message(state = %{controller_node_id: controller_node_id}, <<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16), _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16), _api_bitmask::size(256), _checksum>>) when not is_nil(controller_node_id) do
     Logger.debug "GOT SERIAL API CAPABILITIES"
     state
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_random})
@@ -244,7 +246,7 @@ defmodule ZWave.ZStick do
     state
   end
 
-  def process_message(state, <<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>) do
+  def process_message(state = %{controller_node_id: controller_node_id}, <<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>) when not is_nil(controller_node_id) do
     Logger.debug "Setting ourselves as SIS"
     state
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_enable_suc, data: [1, @suc_func_nodeid_server]})
@@ -277,8 +279,6 @@ defmodule ZWave.ZStick do
   end
 
   def process_message(state, msg = <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id, _sublength, command_class, _rest::binary>>) do
-    # update = ZWave.CommandClasses.command_class(command_class).message_from_zstick(msg)
-    # Process.send(ZWave.Node.node_name(state.name, node_id), {:update_state, update}, [])
     Process.send(ZWave.Node.node_name(state.name, node_id), {:message_from_zstick, msg}, [])
     state
   end

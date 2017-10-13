@@ -31,3 +31,4 @@ use Mix.Config
 
 config :huex, username: "L3CJqFdobCGu7QgD2ndNQZdaQ61cqNiwE0Dyc3b8"
 config :huex, ip_address: "192.168.1.14"
+config :logger, handle_sasl_reports: true

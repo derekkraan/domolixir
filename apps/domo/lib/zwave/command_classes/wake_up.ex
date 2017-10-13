@@ -10,10 +10,10 @@ defmodule ZWave.WakeUp do
   defmodule State, do: defstruct [:name, :node_id, :awake, :command_queue]
   @init_state %{awake: true}
 
-  def start_link(name, node_id), do: GenServer.start_link(__MODULE__, {name, node_id}, name: process_name(name, node_id))
+  def start_link(name, node_id), do: GenServer.start_link(__MODULE__, {name, node_id}, name: process_name(name, node_id)) |> IO.inspect
 
   def init({name, node_id}) do
-    state = %State{node_id: node_id, name: name, command_queue: :queue.new()}
+    state = %State{} |> Map.merge(@init_state) |> Map.merge(%{node_id: node_id, name: name, command_queue: :queue.new()})
     wakeup_get_interval_command(node_id) |> ZWave.ZStick.queue_command(name)
     wakeup_no_more_information_command(node_id) |> ZWave.ZStick.queue_command(name)
     wakeup_command_interval_report(node_id) |> ZWave.ZStick.queue_command(name)
@@ -70,7 +70,7 @@ defmodule ZWave.WakeUp do
   end
 
   def queue_command(state, command) do
-    %{state | command_queue: :queue.in(command, state.command_queue)}
+    %State{state | command_queue: :queue.in(command, state.command_queue)}
   end
 
   def handle_info({:queue_command, command}, state) do
@@ -78,19 +78,20 @@ defmodule ZWave.WakeUp do
   end
 
   def private_process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>) do
-    %{state | awake: false} |> IO.inspect
+    %State{state | awake: false} |> IO.inspect
   end
 
   def private_process_message(state, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _rest::binary>>) do
-    %{state | awake: true} |> IO.inspect
+    %State{state | awake: true} |> IO.inspect
   end
 
-  def private_process_message(state, <<@sof, _length, @request, @func_id_application_command_handler, 0, node_id, _length2, @command_class, @wakeup_cmd_notification, _checksum>>) do
-    %{state | awake: true} |> IO.inspect
+  def private_process_message(state, <<@sof, _length, @request, @func_id_application_command_handler, _status, node_id, _length2, @command_class, @wakeup_cmd_notification, _checksum>>) do
+    %State{state | awake: true} |> IO.inspect
   end
 
   def private_process_message(state, <<@sof, _length, @response, @func_id_application_command_handler, 0, @wakeup_cmd_interval_capabilities_report, _rest::binary>>) do
-    %{state | awake: true} |> IO.inspect
+    "DO WE EVER GET HERE" |> IO.inspect
+    %State{state | awake: true} |> IO.inspect
   end
 
   def private_process_message(state, _message), do: state
