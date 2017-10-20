@@ -1,7 +1,10 @@
 defmodule ZWave.Msg do
-  defstruct [:type, :function, :data, :callback_id, :target_node_id, :expected_response]
+  defstruct [:type, :function, :data, :callback_id, :target_node_id, :expected_response, :backoff_time]
 
   use ZWave.Constants
+
+  def update_backoff_time(command = %{backoff_time: nil}), do: %{command | backoff_time: 50}
+  def update_backoff_time(command), do: %{command | backoff_time: round(command.backoff_time * 1.5)}
 
   def prepare(msg = %ZWave.Msg{type: type, function: function, data: data, callback_id: callback_id}) do
     msg

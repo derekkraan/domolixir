@@ -38,6 +38,10 @@ defmodule ZWave.Association do
     [:association_set, :to_node_id, :group_id],
   ]
 
+  def handle({:association_set, to_node_id, group_id}, node_id) do
+    association_set_command(to_node_id, group_id, node_id)
+  end
+
   # def handle({:association_groupings_get}, node_id), do: association_groupings_get_command(node_id)
 
   def association_groupings_get_command(name, node_id) do

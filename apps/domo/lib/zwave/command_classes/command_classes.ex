@@ -3,11 +3,12 @@ defmodule ZWave.CommandClasses do
   use ZWave.Constants
 
   @command_classes %{
-    @command_class_basic =>             ZWave.Basic,
+    @command_class_basic             => ZWave.Basic,
     @command_class_switch_multilevel => ZWave.SwitchMultilevel,
-    @command_class_association =>       ZWave.Association,
-    @command_class_wake_up =>           ZWave.WakeUp,
+    @command_class_association       => ZWave.Association,
+    @command_class_wake_up           => ZWave.WakeUp,
     @command_class_sensor_multilevel => ZWave.SensorMultiLevel,
+    @command_class_sensor_binary     => ZWave.SensorBinary,
   }
 
   def command_class(class), do: @command_classes |> Map.get(class, ZWave.Unsupported)

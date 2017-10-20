@@ -118,11 +118,14 @@ defmodule ZWave.Node do
     Process.send(ZWave.WakeUp.process_name(state.name, state.node_id), {:queue_command, command}, [])
     {:noreply, state}
   end
+
   def handle_info({:zstick_send_error, command}, state = %{total_errors: total_errors}) when total_errors > 10 do
+    Process.send_after(self(), {:retry_message, command}, 1000 * 60 * 10, []) # try again in 10 minutes
     {:noreply, %{state | alive: false, total_errors: state.total_errors + 1}}
   end
   def handle_info({:zstick_send_error, command}, state) do
-    Process.send_after(self(), {:retry_message, command}, 100, [])
+    command = ZWave.Msg.update_backoff_time(command)
+    Process.send_after(self(), {:retry_message, command}, command.backoff_time, [])
     {:noreply, %{state | total_errors: state.total_errors + 1}}
   end
 
@@ -132,9 +135,7 @@ defmodule ZWave.Node do
   end
 
   def process_message(state, <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id, _length, command_class, _rest::binary>>) do
-    IO.inspect("ADDING CMDCLASS?")
     if !Enum.member?(state.command_classes, command_class) do
-      IO.inspect("ADDING CMDCLASS!")
       %ZWave.Node{state | command_classes: [command_class | state.command_classes]}
       |> add_command_class_modules([command_class])
     else

@@ -163,7 +163,7 @@ defmodule ZWave.ZStick do
 
   def handle_info({:command_timeout, command}, state = %{current_command: command}) do
     Logger.error "timeout #{command |> inspect} after #{@command_timeout_interval}"
-    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error, state.current_command}, [])
+    if state.current_command.target_node_id, do: Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:zstick_send_error, state.current_command}, [])
     {:noreply, %State{state | current_command: nil}}
   end
   def handle_info({:command_timeout, _command}, state), do: {:noreply, state}
@@ -252,7 +252,7 @@ defmodule ZWave.ZStick do
   end
 
   def process_message(state = %{current_command: current_command}, msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>) when not is_nil(current_command) do
-    Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
+    if current_command.target_node_id, do: Process.send(ZWave.Node.node_name(state.name, state.current_command.target_node_id), {:message_from_zstick, msg}, [])
     state
   end
 

@@ -55,21 +55,20 @@ defmodule ZWave.SensorMultiLevel do
     private_process_message(name, node_id, msg)
   end
   def process_message(_, _, _), do: nil
+
   def private_process_message(name, node_id, <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id, length, data::binary-size(length), _checksum>>) do
-    parse_data(data) |> IO.inspect
-    IO.inspect name
-    IO.inspect node_id
+    %{node_id: node_id, name: name, event_type: "sensor_multi_level", data: parse_data(data)} |> EventBus.send()
   end
 
   def parse_data(<<@command_class, @sensormultilevelcmd_report, sensor_type, size_precision, value::binary>>) do
     use Bitwise
     size = size_precision &&& @size_mask
-    scale = size_precision &&& @scale_mask >>> @scale_shift |> IO.inspect
-    precision = size_precision &&& @precision_mask >>> @precision_shift
+    scale = (size_precision &&& @scale_mask) >>> @scale_shift
+    precision = (size_precision &&& @precision_mask) >>> @precision_shift
     size_bits = size * 8
     <<int_value::size(size_bits), _rest::binary>> = value
 
-    IO.puts "Sensor: #{sensor_name(sensor_type)} | Value: #{int_value |> inspect} #{scale(sensor_type, scale)}"
+    %{sensor_name: sensor_name(sensor_type), value: int_value / :math.pow(10, precision), unit: scale(sensor_type, scale)}
   end
 
   def commands, do: []
