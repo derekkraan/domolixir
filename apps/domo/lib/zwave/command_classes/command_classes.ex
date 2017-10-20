@@ -9,6 +9,7 @@ defmodule ZWave.CommandClasses do
     @command_class_wake_up           => ZWave.WakeUp,
     @command_class_sensor_multilevel => ZWave.SensorMultiLevel,
     @command_class_sensor_binary     => ZWave.SensorBinary,
+    @command_class_alarm             => ZWave.Alarm,
   }
 
   def command_class(class), do: @command_classes |> Map.get(class, ZWave.Unsupported)
