@@ -13,11 +13,14 @@ defmodule Domo.EventListener.WakeupLight do
 
   def handle_info({:event, %{event_type: "clock_update"} = event}, options) do
     [0, 1] |> Enum.map(fn(day_offset) ->
-      potential_wakup_datetime = event.datetime |> Timex.add(Timex.Duration.from_days(day_offset)) |> Timex.set([hour: options.time[:hour], minute: options.time[:minute]])
+      potential_wakup_datetime = event.datetime
+                                 |> Timex.add(Timex.Duration.from_days(day_offset))
+                                 |> Timex.set([hour: options.time[:hour], minute: options.time[:minute], second: 0])
 
       day_of_week = potential_wakup_datetime |> Timex.weekday() |> Timex.day_shortname()
 
       minutes_to_wakeup = potential_wakup_datetime |> Timex.diff(event.datetime, :minutes)
+      seconds_to_wakeup = potential_wakup_datetime |> Timex.diff(event.datetime, :seconds)
 
       cond do
         !Enum.member?(options.days_of_week, day_of_week) ->
@@ -31,11 +34,13 @@ defmodule Domo.EventListener.WakeupLight do
           nil
         true ->
           # ok, turn on the light
-          intensity = options.light_intensity * (1 - minutes_to_wakeup / options.minutes_to_fade_in) |> round()
+          intensity = (options.light_intensity * (1 - seconds_to_wakeup / (options.minutes_to_fade_in * 60))) |> round()
           send(options.node_id, {:command, {:basic_set, intensity}})
       end
     end)
 
     {:noreply, options}
   end
+
+  def handle_info(_, options), do: {:noreply, options}
 end

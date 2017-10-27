@@ -37,6 +37,12 @@ defmodule WakeupLightTest do
     assert_receive({:command, {:basic_set, 25}})
   end
 
+  test "fades in per second", context do
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 16, minute: 45, second: 50])
+    send(context[:normal_time_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
+    assert_receive({:command, {:basic_set, 1}})
+  end
+
   test "works across days", context do
     day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 26, hour: 23, minute: 51])
     send(context[:just_after_midnight_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
