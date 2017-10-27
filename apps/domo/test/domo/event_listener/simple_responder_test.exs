@@ -1,8 +1,8 @@
-defmodule SimpleResponder do
+defmodule SimpleResponderTest do
   use ExUnit.Case
 
   setup do
-    {:ok, pid} = Domo.Listeners.SimpleResponder.start_link(:test_module, %{event_type: "TestEvent", node_id: "foo"}, {self(), {:got_event}})
+    {:ok, pid} = Domo.EventListener.SimpleResponder.start_link(%{event_type: "TestEvent", node_id: "foo"}, {self(), {:got_event}})
     [pid: pid]
   end
 

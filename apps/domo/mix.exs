@@ -15,7 +15,7 @@ defmodule Domo.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     # Specify extra applications you'll use from Erlang/Elixir
-    [extra_applications: [:sasl, :logger, :huex, :nerves_ssdp_client, :nerves_uart],
+    [extra_applications: [:sasl, :logger, :huex, :nerves_ssdp_client, :nerves_uart, :timex],
      mod: {Domo.Application, []}]
   end
 
@@ -36,6 +36,7 @@ defmodule Domo.Mixfile do
       {:nerves_ssdp_client, "~> 0.1.0"},
       {:nerves_uart, "~> 0.1"},
       {:benchfella, "~> 0.3.0"},
+      {:timex, "~> 3.1"},
     ]
   end
 end

@@ -1,8 +1,8 @@
-defmodule Domo.Listeners.SimpleResponder do
+defmodule Domo.EventListener.SimpleResponder do
   use GenServer
 
-  def start_link(name, pattern, command) do
-    GenServer.start_link(__MODULE__, {pattern, command}, name: name)
+  def start_link(pattern, command) do
+    GenServer.start_link(__MODULE__, {pattern, command})
   end
 
   def init({pattern, command}) do
