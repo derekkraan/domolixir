@@ -51,7 +51,7 @@ defmodule ZWave.WakeUp do
     %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x02, @command_class, @wakeup_cmd_interval_report, @transmit_options], target_node_id: node_id, expected_response: @func_id_application_command_handler}
   end
 
-  def process_message(name, node_id, message), do: Process.send(process_name(name, node_id), {:message_from_zstick, message}, [])
+  def process_message(name, node_id, message), do: send(process_name(name, node_id), {:message_from_zstick, message})
 
   def send_commands(state = %{awake: true}) do
     case :queue.out(state.command_queue) do

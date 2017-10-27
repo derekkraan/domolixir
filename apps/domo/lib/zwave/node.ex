@@ -115,7 +115,7 @@ defmodule ZWave.Node do
   end
 
   def handle_info({:zstick_send_error, command}, state = %{listening: 0}) do
-    Process.send(ZWave.WakeUp.process_name(state.name, state.node_id), {:queue_command, command}, [])
+    send(ZWave.WakeUp.process_name(state.name, state.node_id), {:queue_command, command})
     {:noreply, state}
   end
 

@@ -9,7 +9,7 @@ defmodule ZWave.Association do
   defmodule State, do: defstruct [:name, :node_id, :number_association_groups, :associations_initialized]
   @init_state %{associations_initialized: false}
 
-  def process_message(name, node_id, message), do: Process.send(process_name(name, node_id), {:message_from_zstick, message}, [])
+  def process_message(name, node_id, message), do: send(process_name(name, node_id), {:message_from_zstick, message})
 
   @associationcmd_set 0x01
   @associationcmd_get 0x02
@@ -67,7 +67,7 @@ defmodule ZWave.Association do
     %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x04, @command_class, @associationcmd_set, group_id, to_node_id], target_node_id: node_id}
   end
 
-  def process_message(name, node_id, message), do: Process.send(process_name(name, node_id), {:message_from_zstick, message}, [])
+  def process_message(name, node_id, message), do: send(process_name(name, node_id), {:message_from_zstick, message})
 
   def handle_info({:message_from_zstick, message}, state) do
     {:noreply, private_process_message(state, message)}
