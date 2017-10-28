@@ -1,7 +1,7 @@
 defmodule Domo.EventGenerator.Clock do
   use GenServer
 
-  @tick_interval 20000 #ms
+  @tick_interval 10000 #ms
 
   def start_link do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
