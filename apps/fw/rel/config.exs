@@ -14,11 +14,11 @@ use Mix.Releases.Config,
 # and environment configuration is called a profile
 
 environment :dev do
-  set cookie: :"fcxUyIqw@trd/x$F%9qZ:[IC]myoA_v&E2f.r5_Z`y!fP:Ij/{y`8u(,*P/V4CIi"
+  set cookie: :"v]gBISmj!]ZSy?6N(7rOTQ51~4;wp2kp2orTmSa$_0Rq<l5Y~XD.x.rys^2i(0<W"
 end
 
 environment :prod do
-  set cookie: :"fcxUyIqw@trd/x$F%9qZ:[IC]myoA_v&E2f.r5_Z`y!fP:Ij/{y`8u(,*P/V4CIi"
+  set cookie: :"v]gBISmj!]ZSy?6N(7rOTQ51~4;wp2kp2orTmSa$_0Rq<l5Y~XD.x.rys^2i(0<W"
 end
 
 # You may define one or more releases in this file.
@@ -28,7 +28,7 @@ end
 
 release :fw do
   set version: current_version(:fw)
-  plugin Bootloader.Plugin
+  plugin Bootloader
   if System.get_env("NERVES_SYSTEM") do
     set dev_mode: false
     set include_src: false
