@@ -9,6 +9,10 @@ defmodule Web.Router do
     plug :put_secure_browser_headers
   end
 
+  pipeline :repl do
+    plug :accepts, ["json"]
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -28,6 +32,14 @@ defmodule Web.Router do
     post "/turn_off", DashboardController, :turn_off
     post "/set_value", DashboardController, :set_value
   end
+
+  scope "/", Web do
+    pipe_through :repl
+
+    get "/repl", REPLController, :index
+    post "/repl", REPLController, :repl
+  end
+
 
   # Other scopes may use custom stacks.
   # scope "/api", Web do

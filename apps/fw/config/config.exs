@@ -36,3 +36,18 @@ config :nerves_network, :default,
     psk: "EIDIZPLS",
     key_mgmt: :"WPA-PSK"
   ]
+
+config :web, Web.Endpoint,
+  http: [port: 80],
+  url: [host: "localhost", port: 80],
+  secret_key_base: "PqJn6VoHDJkByj012wOBG8jt+p9GVRkhXvZpZfb9GdnAGy71G+ORBoOyluamRl/3",
+  root: Path.dirname(__DIR__),
+  server: true,
+  render_errors: [accepts: ~w(html json)],
+  pubsub: [name: Nerves.PubSub],
+  code_reloader: false
+
+config :ex_sshd,
+  app: Mix.Project.config[:app],
+  port: 10022,
+  credentials: [{"derek", "secretly"}]

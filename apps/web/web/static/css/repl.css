@@ -1,0 +1,21 @@
+#terminal {
+  background-color: #252525;
+  color: #00ff00;
+  border: 2px solid black;
+  height: 40em;
+  width: 60em;
+  font-size: 14px;
+  font-family: 'Inconsolata', monospace;
+}
+#terminal p {
+  margin: 0;
+  white-space: pre;
+}
+#terminal input {
+  font-family: 'Inconsolata', monospace;
+  width: 100%;
+  color: #00ff00;
+  border: none;
+  background-color: inherit;
+  outline: none;
+}
