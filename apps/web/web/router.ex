@@ -21,6 +21,8 @@ defmodule Web.Router do
     pipe_through :browser # Use the default browser stack
     get "/", DashboardController, :index
 
+    get "/log", EventLogController, :log
+
     get "/networks", NetworksController, :index
     post "/networks/start", NetworksController, :start_network
 
