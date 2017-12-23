@@ -34,7 +34,7 @@ defmodule Fw.Mixfile do
   # applications which could cause the host to fail. Because of this, we only
   # invoke Fw.start/2 when running on a target.
   def application("host") do
-    [extra_applications: [:logger, :nerves_uart]]
+    [extra_applications: [:logger]]
   end
   def application(_target) do
     [mod: {Fw.Application, []},
@@ -52,7 +52,7 @@ defmodule Fw.Mixfile do
   # Type "mix help deps" for more examples and options
   def deps do
     [
-      {:nerves, "~> 0.7", runtime: false},
+      {:nerves, "~> 0.8", runtime: false},
       {:nerves_firmware_ssh, "~> 0.2"},
       {:nerves_network, "~> 0.3"},
       {:web, path: "../web"},
@@ -65,11 +65,11 @@ defmodule Fw.Mixfile do
   def deps(target) do
     [
       {:bootloader, "~> 0.1"},
-      {:nerves_runtime, "~> 0.4"}
+      {:nerves_runtime, "~> 0.4"},
     ] ++ system(target)
   end
 
-  def system("rpi"), do: [{:nerves_system_rpi, ">= 0.0.0", runtime: false, path: "~/Code/nerves_system_rpi"}]
+  def system("rpi"), do: [{:nerves_system_rpi, ">= 0.0.0", runtime: false}]
   def system("rpi0"), do: [{:nerves_system_rpi0, ">= 0.0.0", runtime: false}]
   def system("rpi2"), do: [{:nerves_system_rpi2, ">= 0.0.0", runtime: false}]
   def system("rpi3"), do: [{:nerves_system_rpi3, ">= 0.0.0", runtime: false}]
