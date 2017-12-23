@@ -51,3 +51,7 @@ config :ex_sshd,
   app: Mix.Project.config[:app],
   port: 10022,
   credentials: [{"derek", "secretly"}]
+
+config :mdns_configuration,
+  ifname: "wlan0",
+  mdns_domain: "home.local"

@@ -6,9 +6,13 @@ defmodule Fw.Application do
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
+    require Logger
+    Logger.debug "OPTIONS0"
+    inspect(Application.get_all_env(:mdns_configuration)) |> Logger.debug
+
     # Define workers and child supervisors to be supervised
     children = [
-      # worker(Fw.Worker, [arg1, arg2, arg3]),
+      worker(Fw.Mdns, [Map.new(Application.get_all_env(:mdns_configuration))]),
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html

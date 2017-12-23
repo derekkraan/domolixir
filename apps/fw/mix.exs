@@ -55,6 +55,7 @@ defmodule Fw.Mixfile do
       {:nerves, "~> 0.8", runtime: false},
       {:nerves_firmware_ssh, "~> 0.2"},
       {:nerves_network, "~> 0.3"},
+      {:mdns, "~> 0.1"},
       {:web, path: "../web"},
     ] ++
     deps(@target)
