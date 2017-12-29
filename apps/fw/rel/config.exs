@@ -37,4 +37,3 @@ release :fw do
     set vm_args: "rel/vm.args"
   end
 end
-

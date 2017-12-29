@@ -17,7 +17,7 @@ use Mix.Config
 # docs for separating out critical OTP applications such as those
 # involved with firmware updates.
 config :bootloader,
-  init: [:nerves_runtime],
+  init: [:nerves_runtime, :nerves_network, :nerves_firmware_ssh],
   app: Mix.Project.config[:app]
 
 # Import target specific config. This must remain at the bottom
@@ -52,6 +52,6 @@ config :ex_sshd,
   port: 10022,
   credentials: [{"derek", "secretly"}]
 
-config :fw, :mdns,
+config :mdns_configuration,
   ifname: "wlan0",
   mdns_domain: "home.local"

@@ -1,23 +1,26 @@
-defmodule Fw.Mdns do
+defmodule MdnsConfiguration.Mdns do
   use GenServer
 
   require Logger
 
-  def start_link(opts) do
-    Logger.debug "OPTIONS"
-    inspect(opts) |> Logger.debug()
-    GenServer.start_link(__MODULE__, opts)
+  def start_link do
+    GenServer.start_link(__MODULE__, configuration())
+  end
+
+  defp configuration do
+    default_config = %{ifname: "wlan0", mdns_domain: "home.local"}
+    provided_config = Application.get_all_env(:mdns_configuration) |> Enum.into(%{})
+    config = Map.merge(default_config, provided_config)
+    Logger.debug "MdnsConfiguration using config #{inspect(config)}"
+    config
   end
 
   def init(opts) do
-    Logger.debug "OPTIONS"
-    inspect(opts) |> Logger.debug()
-
     SystemRegistry.register()
 
-    init_mdns(opts.mdns_domain)
+    init_mdns(opts[:mdns_domain])
 
-    {:ok, %{ip: nil, ifname: opts.ifname, opts: opts}}
+    {:ok, %{ip: nil, ifname: opts[:ifname], opts: opts}}
   end
 
   def init_mdns(mdns_domain) do
@@ -41,7 +44,7 @@ defmodule Fw.Mdns do
 
   defp handle_ip_update(state, new_ip) do
     Logger.debug("IP address for #{state.ifname} changed to #{new_ip}")
-    update_mdns(new_ip, state.opts.mdns_domain)
+    update_mdns(new_ip, state.opts[:mdns_domain])
     {:noreply, %{state | ip: new_ip}}
   end
 
