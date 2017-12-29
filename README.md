@@ -7,7 +7,9 @@ This project is a WIP, but if you want, you can already use it to see how things
 Domolixir current consists of three parts:
 
 web - a phoenix project that is the user interface to Domolixir.
+
 domo - a library to interface with various domotica hardware (currently supports ZWave).
+
 fw - a nerves project to get web and domo running on a Raspberry PI.
 
 ## Running Domolixir on a computer
