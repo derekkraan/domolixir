@@ -23,10 +23,16 @@ mix phx.server
 ```bash
 git clone https://github.com/derekkraan/domolixir domolixir
 cd domolixir/apps/fw
-export MIX_TARGET=rpi0 # rpi0 is for the Raspberry Pi Zero (W) ... adjust for the actual rpi you have
+export MIX_TARGET=rpi3 # rpi3 is for the Raspberry Pi 3 ... adjust for the actual rpi you have
 export MIX_ENV=prod
 mix deps.get
 mix firmware
 # insert SD card into computer
 mix firmware.burn
 ```
+
+## Which Raspberry Pi to use?
+
+I have been unable to get the Raspberry Pi Zero W to work with the Z-Stick from Aeotech. I suspect that you could get it working with a powered USB hub but I haven't been able to confirm (please submit a pull request with additional information if you have tried this).
+
+For now I would recommend the Raspberry Pi 3 B. It's what I have installed at home and it works like a charm.
