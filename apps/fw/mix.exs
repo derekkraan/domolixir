@@ -53,8 +53,6 @@ defmodule Fw.Mixfile do
   def deps do
     [
       {:nerves, "~> 0.8", runtime: false},
-      {:nerves_firmware_ssh, "~> 0.2"},
-      {:nerves_network, "~> 0.3"},
       {:web, path: "../web"},
     ] ++
     deps(@target)
@@ -66,6 +64,10 @@ defmodule Fw.Mixfile do
     [
       {:bootloader, "~> 0.1"},
       {:nerves_runtime, "~> 0.4"},
+      {:nerves_firmware_ssh, "~> 0.2"},
+      {:nerves_network, "~> 0.3"},
+      {:nerves_ntp, github: "evokly/nerves_ntp"},
+      {:mdns_configuration, path: "../mdns_configuration"},
     ] ++ system(target)
   end
 
