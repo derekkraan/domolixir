@@ -1,13 +1,8 @@
 defmodule EventBus do
-  require Logger
-
   def send(event) do
-    Logger.info "EVENT RECEIVED: #{event |> inspect}"
-
     process(event)
 
-    # return the event to facilitate chaining
-    event
+    event # return the event to facilitate chaining
   end
 
   def process(event) do
