@@ -12,7 +12,7 @@ defmodule Fw.Application do
 
     # Define workers and child supervisors to be supervised
     children = [
-      worker(Fw.Mdns, [Map.new(Application.get_all_env(:mdns_configuration))]),
+      worker(Fw.Mdns, [Map.new(Application.get_all_env(:fw)[:mdns])]),
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html

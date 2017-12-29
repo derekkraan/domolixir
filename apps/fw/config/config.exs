@@ -52,6 +52,6 @@ config :ex_sshd,
   port: 10022,
   credentials: [{"derek", "secretly"}]
 
-config :mdns_configuration,
+config :fw, :mdns,
   ifname: "wlan0",
   mdns_domain: "home.local"
