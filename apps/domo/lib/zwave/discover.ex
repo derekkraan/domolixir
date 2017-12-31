@@ -25,13 +25,13 @@ defmodule ZWave.Discover do
 
   @doc """
   do_discovery returns an array of tuples with form:
-  { usb device, lambda to start ZStick}
+  {network_type, usb device, lambda to start ZStick}
   """
   def do_discovery do
     Nerves.UART.enumerate
     |> Enum.filter(&filter/1)
     |> Enum.map(fn({usb_dev, _info}) ->
-      {usb_dev, fn() -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom) end}
+      {:zwave_zstick, usb_dev, fn() -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom) end}
     end)
   end
 

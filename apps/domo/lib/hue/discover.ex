@@ -23,8 +23,12 @@ defmodule Hue.Discover do
     {:noreply, %{state | discovered: do_discovery}}
   end
 
+  @doc """
+  do_discovery returns an array of tuples with form:
+  {network_type, usb device, lambda to start ZStick}
+  """
   def do_discovery do
     Huex.Discovery.discover
-    |> Enum.map(fn ip_address -> {ip_address, fn() -> HueBridge.start(ip_address) end} end)
+    |> Enum.map(fn ip_address -> {:hue_bridge, ip_address, fn() -> HueBridge.start(ip_address) end} end)
   end
 end
