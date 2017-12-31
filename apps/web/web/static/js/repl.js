@@ -2,4 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import { Terminal } from './components/Terminal.jsx'
 
-ReactDOM.render(<Terminal />, document.getElementById('terminal'))
+let terminal = document.getElementById('terminal')
+
+if(terminal) {
+  ReactDOM.render(<Terminal />, terminal)
+}
