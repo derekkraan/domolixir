@@ -1,9 +1,7 @@
 defmodule Domo.Manager do
-  @networks [ZWave]
-
   def discover do
-    @networks
-    |> Enum.flat_map(fn(network) -> Module.concat(network, Discover).discover end)
+    Supervisor.which_children(Domo.DiscoverSupervisor)
+    |> Enum.flat_map(fn {discoverer, _pid, _worker, _def} -> discoverer.discover end)
   end
 
   def start(name) do

@@ -1,7 +1,7 @@
-defmodule ZWave.Discover do
+defmodule Hue.Discover do
   use GenServer
 
-  @discover_interval 5000
+  @discover_interval 30000
 
   def start_link do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -23,18 +23,8 @@ defmodule ZWave.Discover do
     {:noreply, %{state | discovered: do_discovery}}
   end
 
-  @doc """
-  do_discovery returns an array of tuples with form:
-  { usb device, lambda to start ZStick}
-  """
   def do_discovery do
-    Nerves.UART.enumerate
-    |> Enum.filter(&filter/1)
-    |> Enum.map(fn({usb_dev, _info}) ->
-      {usb_dev, fn() -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom) end}
-    end)
+    Huex.Discovery.discover
+    |> Enum.map(fn ip_address -> {ip_address, fn() -> HueBridge.start(ip_address) end} end)
   end
-
-  def filter({usb_dev, %{product_id: 512, vendor_id: 1624}}), do: usb_dev
-  def filter(_), do: nil
 end
