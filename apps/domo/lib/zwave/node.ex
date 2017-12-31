@@ -48,7 +48,7 @@ defmodule ZWave.Node do
 
   def start(controller_name, node_id) do
     import Supervisor.Spec
-    case Supervisor.start_child(ZWave.ZStick.network_supervisor_name(controller_name), worker(ZWave.Node, [controller_name, node_id], [id: ZWave.Node.node_name(controller_name, node_id)])) do
+    case Supervisor.start_child(ZWave.ZStick.network_supervisor_name(controller_name), worker(__MODULE__, [controller_name, node_id], [id: __MODULE__.node_name(controller_name, node_id)])) do
       {:ok, _child} -> :ok
       {:error, {:already_started, _pid}} -> :ok
       error -> error |> IO.inspect
@@ -56,8 +56,8 @@ defmodule ZWave.Node do
   end
 
   def stop(controller_name, node_id) do
-    :ok = Supervisor.terminate_child(ZWave.ZStick.network_supervisor_name(controller_name), ZWave.Node.node_name(controller_name, node_id))
-    :ok = Supervisor.delete_child(ZWave.ZStick.network_supervisor_name(controller_name), ZWave.Node.node_name(controller_name, node_id))
+    :ok = Supervisor.terminate_child(ZWave.ZStick.network_supervisor_name(controller_name), __MODULE__.node_name(controller_name, node_id))
+    :ok = Supervisor.delete_child(ZWave.ZStick.network_supervisor_name(controller_name), __MODULE__.node_name(controller_name, node_id))
   end
 
   def init({name, node_id}) do

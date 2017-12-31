@@ -1,6 +1,12 @@
 defmodule HueBridge do
   use GenServer
 
+  defstruct [
+    :ip,
+    :username,
+    :bridge,
+  ]
+
   def start(ip, username) do
     import Supervisor.Spec, warn: false
     worker_spec = [worker(__MODULE__, [ip, username], [id: ip])]
@@ -25,7 +31,23 @@ defmodule HueBridge do
   end
 
   def init({ip, username}) do
-    {:ok, Huex.connect(ip, username)}
+    Process.send(self(), :post_init)
+
+    bridge = Huex.connect(ip, username)
+
+    {:ok, %HueBridge{bridge: bridge, ip: ip, username: username}}
+  end
+
+  def handle_info(:post_init, state) do
+    state.bridge
+    |> Huex.lights()
+    |> Map.keys()
+    |> Enum.each(fn light_id -> Hue.Node.start(state.ip, light_id) end)
+
+    {:noreply, state}
+  end
+
+  def init_lights(bridge) do
   end
 
   def handle_info({:turn_on, light_id}, bridge) do
