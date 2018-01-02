@@ -15,4 +15,6 @@ defmodule Domo.EventListener.SimpleResponder do
     end
     {:noreply, state}
   end
+
+  def handle_info(_, state), do: {:noreply, state}
 end

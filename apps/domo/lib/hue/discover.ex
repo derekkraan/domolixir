@@ -1,26 +1,21 @@
 defmodule Hue.Discover do
   use GenServer
 
-  @discover_interval 30000
+  @discover_interval 5000
 
   def start_link do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def discover do
-    GenServer.call(__MODULE__, :get_discovered)
-  end
-
-  def handle_call(:get_discovered, _from, state), do: {:reply, state.discovered, state}
-
   def init(_) do
     Process.send_after(self(), :discover, @discover_interval)
-    {:ok, %{discovered: do_discovery}}
+    {:ok, nil}
   end
 
-  def handle_info(:discover, state) do
+  def handle_info(:discover, _state) do
     Process.send_after(self(), :discover, @discover_interval)
-    {:noreply, %{state | discovered: do_discovery}}
+    do_discovery()
+    {:noreply, nil}
   end
 
   @doc """
@@ -28,7 +23,17 @@ defmodule Hue.Discover do
   {network_type, usb device, lambda to start ZStick}
   """
   def do_discovery do
-    Huex.Discovery.discover
-    |> Enum.map(fn ip_address -> {:hue_bridge, ip_address, fn() -> HueBridge.start(ip_address) end} end)
+    Huex.Discovery.discover |> Enum.each(fn ip_address ->
+      %{
+        event_type: "network_discovered",
+        network_type: :hue_bridge,
+        network_identifier: ip_address,
+        pair: pair(ip_address),
+        connect: connect(ip_address),
+      } |> EventBus.send()
+    end)
   end
+
+  defp pair(ip_address), do: fn() -> HueBridge.start(ip_address) end
+  defp connect(ip_address), do: fn(username) -> HueBridge.start(ip_address, username) end
 end

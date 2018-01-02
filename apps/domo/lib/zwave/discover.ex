@@ -7,20 +7,15 @@ defmodule ZWave.Discover do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def discover do
-    GenServer.call(__MODULE__, :get_discovered)
-  end
-
-  def handle_call(:get_discovered, _from, state), do: {:reply, state.discovered, state}
-
   def init(_) do
     Process.send_after(self(), :discover, @discover_interval)
-    {:ok, %{discovered: do_discovery}}
+    {:ok, nil}
   end
 
   def handle_info(:discover, state) do
     Process.send_after(self(), :discover, @discover_interval)
-    {:noreply, %{state | discovered: do_discovery}}
+    do_discovery()
+    {:noreply, nil}
   end
 
   @doc """
@@ -30,11 +25,20 @@ defmodule ZWave.Discover do
   def do_discovery do
     Nerves.UART.enumerate
     |> Enum.filter(&filter/1)
-    |> Enum.map(fn({usb_dev, _info}) ->
-      {:zwave_zstick, usb_dev, fn() -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom) end}
+    |> Enum.each(fn({usb_dev, _info}) ->
+      %{
+        event_type: "network_discovered",
+        network_identifier: usb_dev,
+        network_type: :zwave_zstick,
+        pair: pair(usb_dev),
+        connect: connect(usb_dev),
+      } |> EventBus.send()
     end)
   end
 
-  def filter({usb_dev, %{product_id: 512, vendor_id: 1624}}), do: usb_dev
-  def filter(_), do: nil
+  defp pair(usb_dev), do: nil
+  defp connect(usb_dev), do: fn(_credentials) -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom) end
+
+  defp filter({usb_dev, %{product_id: 512, vendor_id: 1624}}), do: usb_dev
+  defp filter(_), do: nil
 end
