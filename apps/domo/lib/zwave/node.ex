@@ -43,7 +43,7 @@ defmodule ZWave.Node do
 
   def start_link(name, node_id) do
     Logger.debug "STARTING NODE #{node_id}"
-    GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id)) |> IO.inspect
+    GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id))
   end
 
   def start(controller_name, node_id) do

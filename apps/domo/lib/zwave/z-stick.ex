@@ -40,7 +40,7 @@ defmodule ZWave.ZStick do
 
   def start_link(usb_device, name) do
     Logger.debug "STARTING ZSTICK"
-    GenServer.start_link(__MODULE__, {usb_device, name}, name: name) |> IO.inspect
+    GenServer.start_link(__MODULE__, {usb_device, name}, name: name)
   end
 
   def handle_call(:get_callback_id, _from, state) do

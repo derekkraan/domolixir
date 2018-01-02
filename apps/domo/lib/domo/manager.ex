@@ -6,7 +6,7 @@ defmodule Domo.Manager do
 
   def start(name) do
     fun = discover
-          |> Enum.find(fn({network_type, network_name, fun}) -> network_name == name end)
+          |> Enum.find(fn({_network_type, network_name, _fun}) -> network_name == name end)
           |> elem(2)
     fun.()
   end
