@@ -1,5 +1,7 @@
 # Domolixir
 
+[![CircleCI](https://circleci.com/gh/derekkraan/domolixir.svg?style=svg)](https://circleci.com/gh/derekkraan/domolixir)
+
 Domolixir is a pure-Elixir solution for your smart home. It currently supports (part of) ZWave, with plans to support Philips Hue in the future. 
 
 This project is a WIP, but if you want, you can already use it to see how things are going.
