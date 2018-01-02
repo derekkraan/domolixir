@@ -3,9 +3,15 @@ defmodule Hue.Node do
 
   use GenServer
 
+  @init_state %{
+    alive: true,
+  }
+
   defstruct [
     :node_id,
-    :name
+    :name,
+    :label,
+    :alive,
   ]
 
   def start_link(name, node_id) do
@@ -30,4 +36,12 @@ defmodule Hue.Node do
   def request_state(state), do: nil
 
   def node_name(name, node_id), do: :"#{name}_node_#{node_id}"
+
+  def handle_call(:get_information, _from, state) do
+    {:reply, %{state | label: "Hue Lamp: #{state.node_id}"}, state}
+  end
+
+  def handle_call(:get_commands, _from, state) do
+    {:reply, [], state}
+  end
 end
