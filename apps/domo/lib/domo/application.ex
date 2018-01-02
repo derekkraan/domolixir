@@ -13,7 +13,7 @@ defmodule Domo.Application do
       worker(Domo.Sunrise, []),
       supervisor(Domo.SystemSupervisor, []),
       supervisor(Domo.DiscoverSupervisor, []),
-      supervisor(Domo.EventListeners, []),
+      supervisor(Domo.EventListeners, [[]]),
       supervisor(Domo.EventGenerators, [[
         worker(Domo.EventGenerator.Clock, [], [id: Domo.EventGenerator.Clock])
       ]]),
