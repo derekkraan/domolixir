@@ -8,31 +8,31 @@ defmodule WakeupLightTest do
   end
 
   test "doesn't turn on a light if it isn't time yet", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 14, minute: 0])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 14, minute: 0, second: 00])
     send(context[:normal_time_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     refute_receive(_)
   end
 
   test "wrong day (Saturday)", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 28, hour: 14, minute: 0])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 28, hour: 14, minute: 0, second: 00])
     send(context[:normal_time_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     refute_receive(_)
   end
 
   test "turns on a light when the time is approaching", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 16, minute: 45])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 16, minute: 45, second: 00])
     send(context[:normal_time_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     assert_receive({:command, {:basic_set, _}})
   end
 
   test "when fadein time begins, sets the lamp to 0", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 16, minute: 45])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 16, minute: 45, second: 00])
     send(context[:normal_time_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     assert_receive({:command, {:basic_set, 0}})
   end
 
   test "when halfway through fadein time, sets the lamp to 50% of final intensity", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 17, minute: 00])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 27, hour: 17, minute: 00, second: 00])
     send(context[:normal_time_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     assert_receive({:command, {:basic_set, 25}})
   end
@@ -44,13 +44,13 @@ defmodule WakeupLightTest do
   end
 
   test "works across days", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 26, hour: 23, minute: 51])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 26, hour: 23, minute: 51, second: 00])
     send(context[:just_after_midnight_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     assert_receive({:command, {:basic_set, 10}})
   end
 
   test "still checks day of week properly across dates", context do
-    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 25, hour: 23, minute: 51])
+    day = Timex.now() |> Timex.set([year: 2017, month: 10, day: 25, hour: 23, minute: 51, second: 00])
     send(context[:just_after_midnight_pid], {:event, %{event_type: "clock_update", node_id: nil, datetime: day}})
     refute_receive(_)
   end
