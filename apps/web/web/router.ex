@@ -23,12 +23,11 @@ defmodule Web.Router do
 
     get "/log", EventLogController, :log
 
-    get "/networks", NetworksController, :index
-    post "/networks/start", NetworksController, :start_network
-
     get "/scenes", ScenesController, :index
 
     get "/dashboard", DashboardController, :index
+    get "/nodes", DashboardController, :nodes
+    get "/networks", DashboardController, :networks
     post "/turn_on", DashboardController, :turn_on
     post "/do_command", DashboardController, :do_command
     post "/turn_off", DashboardController, :turn_off

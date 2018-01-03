@@ -5,6 +5,14 @@ defmodule Web.DashboardController do
     render conn, "index.html"
   end
 
+  def nodes(conn, _params) do
+    json conn, Domo.EventListener.Nodes.get
+  end
+
+  def networks(conn, _params) do
+    json conn, Domo.EventListener.Networks.get
+  end
+
   def do_command(conn, params) do
     command = Domo.Node.get_commands(params["node"] |> String.to_existing_atom)
               |> Enum.find(fn([cmd_name | _rest]) -> cmd_name == params["command"] |> String.to_existing_atom end)

@@ -28,6 +28,8 @@ defmodule Hue.Discover do
         event_type: "network_discovered",
         network_type: :hue_bridge,
         network_identifier: ip_address,
+        paired: false,
+        connected: false,
         pair: pair(ip_address),
         connect: connect(ip_address),
       } |> EventBus.send()

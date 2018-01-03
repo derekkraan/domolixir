@@ -30,6 +30,8 @@ defmodule ZWave.Discover do
         event_type: "network_discovered",
         network_identifier: usb_dev,
         network_type: :zwave_zstick,
+        paired: true,
+        connected: false,
         pair: pair(usb_dev),
         connect: connect(usb_dev),
       } |> EventBus.send()
