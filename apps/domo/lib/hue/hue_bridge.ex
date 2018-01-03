@@ -57,22 +57,19 @@ defmodule HueBridge do
   def init_lights(bridge) do
   end
 
-  def handle_info({:turn_on, light_id}, bridge) do
-    Huex.turn_on(bridge, light_id)
-    {:noreply, bridge}
+  def handle_call({:turn_on, light_id}, _from, state) do
+    reply = Huex.turn_on(state.bridge, light_id)
+    {:reply, reply, state}
   end
 
-  def handle_info({:turn_off, light_id}, bridge) do
-    Huex.turn_off(bridge, light_id)
-    {:noreply, bridge}
+  def handle_call({:turn_off, light_id}, _from, state) do
+    reply = Huex.turn_off(state.bridge, light_id)
+    {:reply, reply, state}
   end
 
-  def handle_call(:get_information, _from, state) do
-    {:reply, %{state | label: "Hue Bridge: #{state.ip}"}, state}
-  end
-
-  def handle_call(:get_commands, _from, state) do
-    {:reply, [], state}
+  def handle_call({:set_brightness, light_id, brightness}, _from, state) do
+    reply = Huex.set_brightness(state.bridge, light_id, brightness)
+    {:reply, reply, state}
   end
 
   def network_supervisor_name(ip), do: :"hue_#{ip}_network_supervisor"

@@ -6,11 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="">
+    <meta name="csrf" content="<%= Plug.CSRFProtection.get_csrf_token() %>">
 
     <title>Domolixir</title>
     <link rel="stylesheet" href="<%= static_path(@conn, "/css/app.css") %>">
     <link href="https://fonts.googleapis.com/css?family=Comfortaa|Fredoka+One|Open+Sans" rel="stylesheet">
-
   </head>
 
   <body>
