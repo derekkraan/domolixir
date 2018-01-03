@@ -14,18 +14,7 @@
   </head>
 
   <body>
-    <div class="header">
-      Domolixir
-    </div>
-
-    <nav class="menu">
-      <a href="/dashboard">Dash</a>
-      <a href="/networks">Netwks</a>
-    </nav>
-
-    <div class="container">
-      <%= render @view_module, @view_template, assigns %>
-    </div> <!-- /container -->
+    <div id="react-root"></div>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>
