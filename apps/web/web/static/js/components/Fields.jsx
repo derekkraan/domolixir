@@ -1,4 +1,5 @@
 import React from 'react'
+import { t } from '../lib/translations'
 
 export const Field = (props) => {
   let Elem = fieldElement(props.field)
@@ -13,11 +14,19 @@ const fieldElement = (field) => {
   return UnknownField
 }
 
-const UnknownField = (props) => <p>
+const UnknownField = (props) => <label>
   Unknown field `{ props.field[1] }`
-</p>
+</label>
 
-const FloatField = ({field, onChange, value}) => <p>
-  {field[0]}
+const FloatField = ({field, onChange, value}) => <label>
+  { t(`field.${field[0]}`) }
   <input onChange={(e) => onChange(e.target.value)} value={value} />
-</p>
+</label>
+
+export const OnOffButton = ({field, onChange, value}) => <div onClick={(e) => {onChange(value ? false : true)}} className={`on_off_button ${value ? 'on' : 'off'}`}>
+  <div className="slider_part">
+    <div className="on_label">ON</div>
+    <div className="on_off_circle" />
+    <div className="off_label">OFF</div>
+  </div>
+</div>

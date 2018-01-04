@@ -1,7 +1,9 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { Layout } from './Layout.jsx'
-import { Field } from './Fields.jsx'
+import { Field, OnOffButton } from './Fields.jsx'
+import { t } from '../lib/translations'
+import { store } from '../store'
 
 const mapStateToProps = ({nodes, networks}) => {
   return {
@@ -26,17 +28,33 @@ const Network = ({network}) => <div className="network">
 </div>
 
 const Node = ({node}) => <div className="node">
-  <p>Node</p>
-  <p>{ node.node_identifier }</p>
+  <h2>Node { node.node_identifier }</h2>
   <div>
-    { node.commands.map((commandTemplate) => <Command node={node} commandTemplate={commandTemplate} />) }
+    { node.commands.filter((commandTemplate) => commandTemplate[0] !== 'turn_off' && commandTemplate[0] !== 'turn_on').map((commandTemplate) => <Command node={node} commandTemplate={commandTemplate} />) }
   </div>
+  <OnOffButton value={node.on_off_status === 'on'} onChange={(on_off) => { executeCommand(node, [on_off ? 'turn_on' : 'turn_off'])}} />
 </div>
+
+const executeCommand = (node, command) => {
+  fetch('/node/command', {
+    method: "post",
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      node_identifier: node.node_identifier,
+      command: command,
+    })
+  }).then(() => {
+    store.dispatch({type: "REFRESH_STATE"})
+  })
+}
 
 class Command extends React.Component {
   constructor(props) {
     super(props)
-    console.log(props)
     this.state = {command: this.defaultValues(props.commandTemplate)}
   }
 
@@ -60,18 +78,7 @@ class Command extends React.Component {
 
   onSubmit (e) {
     e.preventDefault()
-    fetch('/node/command', {
-      method: "post",
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': csrfToken(),
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        node_identifier: this.props.node.node_identifier,
-        command: this.formatCommand(),
-      })
-    })
+    executeCommand(this.props.node, this.formatCommand())
   }
 
   formatCommand () {
@@ -93,11 +100,15 @@ const formatFieldForCommand = (field_type, value) => {
 }
 
 const CommandView = ({node, command, commandTemplate, setProperty, onSubmit}) => <div>
-  <form onSubmit={onSubmit}>
-    { commandTemplate.slice(1).map((field, i) => <Field field={field} onChange={(val) => setProperty(i, val)} value={command[i]}/>) }
-    <button>
-      { commandTemplate[0] }
-    </button>
+  <form onSubmit={onSubmit} className="command">
+    <div className="fields">
+      { commandTemplate.slice(1).map((field, i) => <Field field={field} onChange={(val) => setProperty(i, val)} value={command[i]}/>) }
+    </div>
+    <div className="buttons">
+      <button>
+        { t(`command.${commandTemplate[0]}`) }
+      </button>
+    </div>
   </form>
 </div>
 

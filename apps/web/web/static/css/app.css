@@ -1,14 +1,14 @@
 /* This file is for your main application css. */
 body {
-  background-color: #2E4052;
-  color: white;
+  background-color: #A7A2A9;
+  color: #08090A;
   font-family: 'Open Sans', sans-serif;
   margin: 0;
 }
 
 div.container {
-  margin: 60px 0 0 60px;
-  padding: 0px;
+  margin: 60px 0 0 0px;
+  padding: 10px;
 }
 
 div.header {
@@ -18,55 +18,32 @@ div.header {
   width: 100%;
   top: 0;
   left: 0;
-  background-color: #FFC857;
+  background-color: #29335C;
   line-height: 60px;
-  color: #2E4052;
-  font-size: 34px;
+  color: white;
+  font-size: 30px;
   padding: 0 15px;
-  font-family: 'Fredoka One', cursive;
-}
-
-nav.menu {
-  position: fixed;
-  width: 60px;
-  height: calc(100% - 61px);
-  bottom: 0;
-  left: 0;
-  border-top: 1px solid black;
-  background-color: #FFC857;
-}
-
-nav.menu a {
-  font-family: 'Comfortaa', cursive;
-  font-weight: 600;
-  display: block;
-  line-height: 60px;
-  width: 60px;
-  height: 60px;
-  font-size: 20px;
-  text-decoration: none;
-  color: #2E4052;
-  text-align: center;
-}
-
-nav.menu a + a {
-  border-top: 1px solid white;
-}
-
-form + form {
-  margin-top: 10px;
+  font-family: 'Roboto Condensed', sans-serif;
+  border-bottom: 2px solid #534D41;
 }
 
 div.node {
   position: relative;
   display: inline-block;
-  background-color: creme;
-  border-radius: 7px;
-  border: 1px solid #CCC;
-  padding: 40px 5px 5px 5px;
-  margin: 10px;
+  color: white;
+  background-color: #29335C;
+  padding: 5px;
+  border-top: 5px solid #534D41;
+  border-radius: 2px;
+  margin: 5px;
   width: 250px;
   text-align: center;
+}
+
+div.node h2 {
+  margin-top: 0;
+  font-size: 20px;
+  text-align: left;
 }
 
 div.node button {
@@ -86,6 +63,7 @@ div.node div.command {
   padding-bottom: 5px;
   text-align: right;
 }
+
 div.node div.command * {
   display: inline-block;
   font-size: 12px;
@@ -129,4 +107,12 @@ label + button {
 div.node p {
   width: 100%;
   text-align: center;
+}
+
+div.fields, div.buttons {
+  display: inline-block;
+}
+
+div.buttons {
+  width: 100px;
 }

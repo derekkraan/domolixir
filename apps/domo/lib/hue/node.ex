@@ -30,8 +30,12 @@ defmodule Hue.Node do
   def init({name, node_id}) do
     state = %Hue.Node{} |> Map.merge(@init_state) |> Map.merge(%{node_id: node_id, name: name})
     %{event_type: "node_added", network_identifier: name, node_identifier: node_name(name, node_id), commands: commands} |> EventBus.send()
-    request_state(state)
+    send(self(), :post_init)
     {:ok, state}
+  end
+
+  def handle_info(:post_init, state) do
+    {:noreply, request_state(state)}
   end
 
   defp commands do
@@ -42,22 +46,35 @@ defmodule Hue.Node do
     ]
   end
 
-  def request_state(state), do: nil
+  def request_state(state) do
+    node_identifier = node_name(state.name, state.node_id)
+    light_info = GenServer.call(state.name, {:light_info, state.node_id}) |> IO.inspect
+    if(light_info["state"]["on"]) do
+      %{event_type: "node_on", node_identifier: node_identifier} |> EventBus.send()
+    else
+      %{event_type: "node_off", node_identifier: node_identifier} |> EventBus.send()
+    end
+    %{event_type: "brightness_level", node_identifier: node_identifier, brightness_level: light_info["state"]["bri"] / 255} |> EventBus.send()
+    %{event_type: "node_alive", node_identifier: node_identifier, alive: light_info["state"]["reachable"]} |> EventBus.send()
+    %{event_type: "node_name", node_identifier: node_identifier, name: light_info["name"]} |> EventBus.send()
+    %{event_type: "node_type", node_identifier: node_identifier, type: light_info["type"]} |> EventBus.send()
+    state
+  end
 
   def node_name(name, node_id), do: :"#{name}_node_#{node_id}"
 
   def handle_call({:set_brightness, brightness}, _from, state) do
-    result = GenServer.call(state.name, {:set_brightness, state.node_id, brightness})
-    {:reply, result, state}
+    %{status: :ok} = GenServer.call(state.name, {:set_brightness, state.node_id, brightness})
+    {:reply, :ok, request_state(state)}
   end
 
   def handle_call({:turn_on}, _from, state) do
-    result = GenServer.call(state.name, {:turn_on, state.node_id})
-    {:reply, result, state}
+    %{status: :ok} = GenServer.call(state.name, {:turn_on, state.node_id})
+    {:reply, :ok, request_state(state)}
   end
 
   def handle_call({:turn_off}, _from, state) do
-    result = GenServer.call(state.name, {:turn_off, state.node_id})
-    {:reply, result, state}
+    %{status: :ok} = GenServer.call(state.name, {:turn_off, state.node_id})
+    {:reply, :ok, request_state(state)}
   end
 end

@@ -13,7 +13,18 @@ if(react_root) {
 }
 
 refreshNetworks()
-setInterval(refreshNetworks, 5000)
+setInterval(refreshNetworks, 30000)
 
 refreshNodes()
-setInterval(refreshNodes, 5000)
+setInterval(refreshNodes, 30000)
+
+let counter = 0
+store.subscribe(() => {
+  let store_counter = store.getState().counter
+
+  if(store_counter > counter) {
+    counter = store_counter
+    refreshNodes()
+    refreshNetworks()
+  }
+})
