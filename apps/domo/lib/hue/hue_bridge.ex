@@ -57,22 +57,22 @@ defmodule HueBridge do
   def init_lights(bridge) do
   end
 
-  def handle_call({:light_info, light_id}, _from, state) do
+  def handle_call({:command, {:light_info, light_id}}, _from, state) do
     reply = Huex.light_info(state.bridge, light_id)
     {:reply, reply, state}
   end
 
-  def handle_call({:turn_on, light_id}, _from, state) do
+  def handle_call({:command, {:turn_on, light_id}}, _from, state) do
     reply = Huex.turn_on(state.bridge, light_id)
     {:reply, reply, state}
   end
 
-  def handle_call({:turn_off, light_id}, _from, state) do
+  def handle_call({:command, {:turn_off, light_id}}, _from, state) do
     reply = Huex.turn_off(state.bridge, light_id)
     {:reply, reply, state}
   end
 
-  def handle_call({:set_brightness, light_id, brightness}, _from, state) do
+  def handle_call({:command, {:set_brightness, light_id, brightness}}, _from, state) do
     reply = Huex.set_brightness(state.bridge, light_id, brightness)
     {:reply, reply, state}
   end

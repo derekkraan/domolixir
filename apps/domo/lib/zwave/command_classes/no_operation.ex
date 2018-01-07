@@ -6,9 +6,9 @@ defmodule ZWave.NoOperation do
 
   def start_link(_name, _node_id), do: nil
 
+  def command_class, do: @command_class
   def commands, do: []
 
-  def add_command_class(state), do: state |> Map.put(:command_classes, [@command_class | state.command_classes])
   def process_message(_name, _node_id, _msg), do: nil
 
   def noop_command(node_id) do

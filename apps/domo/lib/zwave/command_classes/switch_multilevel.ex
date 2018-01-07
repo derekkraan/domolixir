@@ -17,7 +17,7 @@ defmodule ZWave.SwitchMultilevel do
   @switchmultilevelcmd_supportedreport 0x07
 
   def commands, do: [
-    [:switch_multilevel_set, :level, :duration],
+    [:switch_multilevel_set, [:level, :integer_0_100], [:duration, :seconds]],
     [:switch_multilevel_supported_get],
   ]
 

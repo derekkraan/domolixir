@@ -26,8 +26,7 @@ defmodule ZWave.WakeUp do
     [:wakeup_get_interval],
   ]
 
-  def add_command_class(state = %{listening: 0}), do: state |> Map.put(:command_classes, [@command_class | state.command_classes])
-  def add_command_class(state), do: state
+  def command_class, do: @command_class
 
   @wakeup_cmd_interval_set 0x04
   @wakeup_cmd_interval_get 0x05

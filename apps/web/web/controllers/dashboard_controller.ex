@@ -10,13 +10,12 @@ defmodule Web.DashboardController do
   end
 
   def node_command(conn, params) do
-    IO.inspect(params)
     node_identifier = params["node_identifier"] |> String.to_existing_atom()
     if Domo.EventListener.Nodes.get |> Map.has_key?(node_identifier) do
       command = params["command"]
                 |> List.replace_at(0, params["command"] |> List.first |> String.to_existing_atom())
                 |> List.to_tuple
-      GenServer.call(node_identifier, command)
+      GenServer.call(node_identifier, {:command, command})
       json conn, true
     else
       json conn, false
@@ -25,6 +24,16 @@ defmodule Web.DashboardController do
 
   def networks(conn, _params) do
     json conn, Domo.EventListener.Networks.get
+  end
+
+  def network_pair(conn, params) do
+    Domo.EventListener.NetworkConnector.pair(params["network_identifier"], params["credentials"])
+    json conn, true
+  end
+
+  def network_connect(conn, params) do
+    Domo.EventListener.NetworkConnector.connect(params["network_identifier"], params["credentials"])
+    json conn, true
   end
 
   def do_command(conn, params) do

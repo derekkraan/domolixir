@@ -20,5 +20,5 @@ defmodule ZWave.SensorBinary do
 
   def commands, do: []
 
-  def add_command_class(state), do: state |> Map.put(:command_classes, [@command_class | state.command_classes])
+  def command_class, do: @command_class
 end

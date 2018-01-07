@@ -31,11 +31,11 @@ defmodule ZWave.Association do
 
   def process_name(name, node_id), do: :"#{ZWave.Node.node_name(name, node_id)}_association_command_class"
 
-  def add_command_class(node_state), do: node_state |> Map.put(:command_classes, [@command_class | node_state.command_classes])
+  def command_class, do: @command_class
 
   def commands, do: [
     [:association_groupings_get],
-    [:association_set, :to_node_id, :group_id],
+    [:association_set, [:to_node_id, :node_id], [:group_id, :integer]],
   ]
 
   def handle({:association_set, to_node_id, group_id}, node_id) do

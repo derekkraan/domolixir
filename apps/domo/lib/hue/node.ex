@@ -48,7 +48,7 @@ defmodule Hue.Node do
 
   def request_state(state) do
     node_identifier = node_name(state.name, state.node_id)
-    light_info = GenServer.call(state.name, {:light_info, state.node_id}) |> IO.inspect
+    light_info = GenServer.call(state.name, {:command, {:light_info, state.node_id}}) |> IO.inspect
     if(light_info["state"]["on"]) do
       %{event_type: "node_on", node_identifier: node_identifier} |> EventBus.send()
     else
@@ -63,18 +63,18 @@ defmodule Hue.Node do
 
   def node_name(name, node_id), do: :"#{name}_node_#{node_id}"
 
-  def handle_call({:set_brightness, brightness}, _from, state) do
-    %{status: :ok} = GenServer.call(state.name, {:set_brightness, state.node_id, brightness})
+  def handle_call({:command, {:set_brightness, brightness}}, _from, state) do
+    %{status: :ok} = GenServer.call(state.name, {:command, {:set_brightness, state.node_id, brightness}})
     {:reply, :ok, request_state(state)}
   end
 
-  def handle_call({:turn_on}, _from, state) do
-    %{status: :ok} = GenServer.call(state.name, {:turn_on, state.node_id})
+  def handle_call({:command, {:turn_on}}, _from, state) do
+    %{status: :ok} = GenServer.call(state.name, {:command, {:turn_on, state.node_id}})
     {:reply, :ok, request_state(state)}
   end
 
-  def handle_call({:turn_off}, _from, state) do
-    %{status: :ok} = GenServer.call(state.name, {:turn_off, state.node_id})
+  def handle_call({:command, {:turn_off}}, _from, state) do
+    %{status: :ok} = GenServer.call(state.name, {:command, {:turn_off, state.node_id}})
     {:reply, :ok, request_state(state)}
   end
 end
