@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { Layout } from './Layout.jsx'
-import { Field, OnOffButton } from './Fields.jsx'
+import { Field, OnOffSlider } from './Fields.jsx'
 import { t } from '../lib/translations'
 import { store } from '../store'
 
@@ -24,16 +24,70 @@ export const App = connect(
 )(AppView)
 
 const Network = ({network}) => <div className="network">
-  <p>Network</p>
+  <h2>Network</h2>
+  { JSON.stringify(network) }
+  { network.paired ? 'Paired' : <Pair network={network} /> }
+  { network.connected ? 'Connected' : <Connect network={network} /> }
 </div>
 
-const Node = ({node}) => <div className="node">
+const Pair = ({network}) => <form onSubmit={(e) => pairNetwork(e, network)}>
+  <button>Pair</button>
+</form>
+
+const Connect = ({network}) => <form onSubmit={(e) => connectNetwork(e, network)}>
+  <button>Connect</button>
+</form>
+
+const pairNetwork = (e, network) => {
+  e.preventDefault()
+  fetch('/network/pair', {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      network_identifier: network.network_identifier,
+    })
+  }).then(() => {
+    store.dispatch({type: "REFRESH_STATE"})
+  })
+}
+
+const connectNetwork = (e, network) => {
+  e.preventDefault()
+  fetch('/network/connect', {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      network_identifier: network.network_identifier,
+    })
+  }).then(() => {
+    store.dispatch({type: "REFRESH_STATE"})
+  })
+}
+
+const Node = ({node}) => <div className={`node ${node.alive ? 'alive' : 'dead'}`}>
   <h2>Node { node.node_identifier }</h2>
   <div>
     { node.commands.filter((commandTemplate) => commandTemplate[0] !== 'turn_off' && commandTemplate[0] !== 'turn_on').map((commandTemplate) => <Command node={node} commandTemplate={commandTemplate} />) }
   </div>
-  <OnOffButton value={node.on_off_status === 'on'} onChange={(on_off) => { executeCommand(node, [on_off ? 'turn_on' : 'turn_off'])}} />
+  <div className="on_off_switch">
+    <a href="" onClick={(e) => {executeCommandEvent(e, node, ['turn_off'])}}>OFF</a>
+    <OnOffSlider value={node.on_off_status === 'on'} onChange={(on_off) => { executeCommand(node, [on_off ? 'turn_on' : 'turn_off'])}} />
+    <a href="" onClick={(e) => {executeCommandEvent(e, node, ['turn_on'])}}>ON</a>
+  </div>
 </div>
+
+const executeCommandEvent = (event, node, command) => {
+  event.preventDefault()
+  executeCommand(node, command)
+}
 
 const executeCommand = (node, command) => {
   fetch('/node/command', {
@@ -51,6 +105,10 @@ const executeCommand = (node, command) => {
     store.dispatch({type: "REFRESH_STATE"})
   })
 }
+
+const CommandList = ({commands}) => <select>
+  { commands.map((command) => <option key={command[0]}>{command[0]}</option>) }
+</select>
 
 class Command extends React.Component {
   constructor(props) {

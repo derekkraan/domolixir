@@ -1,0 +1,45 @@
+@import 'colours';
+
+$slider-bg: #00DD00;
+$button-bg: #FFF;
+$text: white;
+
+.on_off_slider,
+.on_off_circle {
+  border-radius: 50px;
+}
+
+.on_off_slider {
+  display: inline-block;
+  vertical-align: middle;
+  width: 80px;
+  height: 40px;
+  background-color: $slider-bg;
+  transition: background-color 0.5s;
+  overflow: hidden;
+
+  .slider_part {
+    position: relative;
+    transition: left 0.1s;
+
+    .on_off_circle {
+      position: relative;
+      margin: 3px;
+      height: 34px;
+      width: 34px;
+      background-color: $button-bg;
+    }
+  }
+}
+
+.on_off_slider.off {
+  background-color: $col4;
+}
+
+.on_off_slider.on .slider_part {
+  left: 40px;
+}
+
+.on_off_slider.off .slider_part {
+  left: 0;
+}

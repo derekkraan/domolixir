@@ -28,6 +28,8 @@ defmodule Web.Router do
     get "/dashboard", DashboardController, :index
     get "/nodes", DashboardController, :nodes
     post "/node/command", DashboardController, :node_command
+    post "/network/pair", DashboardController, :network_pair
+    post "/network/connect", DashboardController, :network_connect
     get "/networks", DashboardController, :networks
     post "/turn_on", DashboardController, :turn_on
     post "/do_command", DashboardController, :do_command
