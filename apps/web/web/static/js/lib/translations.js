@@ -18,4 +18,7 @@ const translations_en = {
   'command.switch_multilevel_get': 'Get Level',
   'command.switch_multilevel_supported_get': 'Get Supported Levels',
   'field.brightness': 'Brightness',
+  'field.level': 'Level',
+  'networks.zwave_zstick': 'ZWave ZStick',
+  'networks.hue_bridge': 'Hue Bridge',
 }

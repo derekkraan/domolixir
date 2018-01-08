@@ -24,8 +24,7 @@ export const App = connect(
 )(AppView)
 
 const Network = ({network}) => <div className="network">
-  <h2>Network</h2>
-  { JSON.stringify(network) }
+  <h2>{ t(`networks.${network.network_type}`) } { network.network_identifier }</h2>
   { network.paired ? 'Paired' : <Pair network={network} /> }
   { network.connected ? 'Connected' : <Connect network={network} /> }
 </div>
