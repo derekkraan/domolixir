@@ -20,7 +20,6 @@ $text: white;
 
   .slider_part {
     position: relative;
-    transition: left 0.1s;
 
     .on_off_circle {
       position: relative;
@@ -28,18 +27,20 @@ $text: white;
       height: 34px;
       width: 34px;
       background-color: $button-bg;
+      z-index: 1;
+    }
+
+    .draggable_part {
+      position: absolute;
+      z-index: 2;
+      opacity: 0;
+      height: 37px;
+      width: 37px;
+      background-color: red;
     }
   }
 }
 
 .on_off_slider.off {
   background-color: $col4;
-}
-
-.on_off_slider.on .slider_part {
-  left: 40px;
-}
-
-.on_off_slider.off .slider_part {
-  left: 0;
 }
