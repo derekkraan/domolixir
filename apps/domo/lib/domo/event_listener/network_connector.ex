@@ -18,7 +18,7 @@ defmodule Domo.EventListener.NetworkConnector do
   end
 
   def handle_call({:connect, network_identifier, credentials}, _from, connect_functions) do
-    connect_functions |> IO.inspect
+    connect_functions |> IO.inspect()
     :ok = connect_functions[network_identifier][:connect].(credentials)
     {:reply, :ok, connect_functions}
   end
@@ -28,8 +28,18 @@ defmodule Domo.EventListener.NetworkConnector do
     {:reply, :ok, connect_functions}
   end
 
-  def handle_info({:event, %{event_type: "network_discovered", network_identifier: network_identifier, connect: connect, pair: pair}}, connect_functions) do
-    {:noreply, Map.merge(connect_functions, %{network_identifier => %{connect: connect, pair: pair}})}
+  def handle_info(
+        {:event,
+         %{
+           event_type: "network_discovered",
+           network_identifier: network_identifier,
+           connect: connect,
+           pair: pair
+         }},
+        connect_functions
+      ) do
+    {:noreply,
+     Map.merge(connect_functions, %{network_identifier => %{connect: connect, pair: pair}})}
   end
 
   def handle_info(event, connect_functions), do: {:noreply, connect_functions}

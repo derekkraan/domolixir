@@ -16,16 +16,25 @@ defmodule ZWave.SwitchMultilevel do
   @switchmultilevelcmd_supportedget 0x06
   @switchmultilevelcmd_supportedreport 0x07
 
-  def commands, do: [
-    [:switch_multilevel_set, [:level, :integer_0_100], [:duration, :seconds]],
-    [:switch_multilevel_supported_get],
-  ]
+  def commands,
+    do: [
+      [:switch_multilevel_set, [:level, :integer_0_100], [:duration, :seconds]],
+      [:switch_multilevel_supported_get]
+    ]
 
   def handle({:switch_multilevel_set, level, duration}, node_id) do
-    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x04, @command_class, @switchmultilevelcmd_set, level, duration]}
+    %ZWave.Msg{
+      type: @request,
+      function: @func_id_zw_send_data,
+      data: [node_id, 0x04, @command_class, @switchmultilevelcmd_set, level, duration]
+    }
   end
 
   def handle({:switch_multilevel_supported_get}, node_id) do
-    %ZWave.Msg{type: @request, function: @func_id_zw_send_data, data: [node_id, 0x02, @command_class, @switchmultilevelcmd_supportedget]}
+    %ZWave.Msg{
+      type: @request,
+      function: @func_id_zw_send_data,
+      data: [node_id, 0x02, @command_class, @switchmultilevelcmd_supportedget]
+    }
   end
 end

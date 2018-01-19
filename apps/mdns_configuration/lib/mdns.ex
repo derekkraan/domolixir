@@ -11,7 +11,7 @@ defmodule MdnsConfiguration.Mdns do
     default_config = %{ifname: "wlan0", mdns_domain: "home.local"}
     provided_config = Application.get_all_env(:mdns_configuration) |> Enum.into(%{})
     config = Map.merge(default_config, provided_config)
-    Logger.debug "MdnsConfiguration using config #{inspect(config)}"
+    Logger.debug("MdnsConfiguration using config #{inspect(config)}")
     config
   end
 
@@ -49,6 +49,7 @@ defmodule MdnsConfiguration.Mdns do
   end
 
   defp update_mdns(_ip, nil), do: :ok
+
   defp update_mdns(ip, _mdns_domain) do
     ip_tuple = to_ip_tuple(ip)
     Mdns.Server.stop()

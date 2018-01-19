@@ -23,7 +23,8 @@ defmodule Hue.Discover do
   {network_type, usb device, lambda to start ZStick}
   """
   def do_discovery do
-    Huex.Discovery.discover |> Enum.each(fn ip_address ->
+    Huex.Discovery.discover()
+    |> Enum.each(fn ip_address ->
       %{
         event_type: "network_discovered",
         network_type: :hue_bridge,
@@ -31,11 +32,12 @@ defmodule Hue.Discover do
         paired: false,
         connected: false,
         pair: pair(ip_address),
-        connect: connect(ip_address),
-      } |> EventBus.send()
+        connect: connect(ip_address)
+      }
+      |> EventBus.send()
     end)
   end
 
-  defp pair(ip_address), do: fn() -> HueBridge.start(ip_address) end
-  defp connect(ip_address), do: fn(username) -> HueBridge.start(ip_address, username) end
+  defp pair(ip_address), do: fn -> HueBridge.start(ip_address) end
+  defp connect(ip_address), do: fn username -> HueBridge.start(ip_address, username) end
 end

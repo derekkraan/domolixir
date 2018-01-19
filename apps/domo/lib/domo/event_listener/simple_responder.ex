@@ -10,9 +10,10 @@ defmodule Domo.EventListener.SimpleResponder do
   end
 
   def handle_info({:event, event}, %{pattern: pattern, command: command} = state) do
-    if({pattern.event_type, pattern.node_id} == {event.event_type, event.node_id}) do
+    if {pattern.event_type, pattern.node_id} == {event.event_type, event.node_id} do
       apply(Kernel, :send, Tuple.to_list(command))
     end
+
     {:noreply, state}
   end
 

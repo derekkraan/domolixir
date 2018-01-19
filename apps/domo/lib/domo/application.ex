@@ -13,15 +13,19 @@ defmodule Domo.Application do
       worker(Domo.Sunrise, []),
       supervisor(Domo.SystemSupervisor, []),
       supervisor(Domo.DiscoverSupervisor, []),
-      supervisor(Domo.EventListeners, [[
-        worker(Domo.EventListener.EventLog, [], [id: Domo.EventListener.EventLog]),
-        worker(Domo.EventListener.Networks, [], [id: Domo.EventListener.Networks]),
-        worker(Domo.EventListener.NetworkConnector, [], [id: Domo.EventListener.NetworkConnector]),
-        worker(Domo.EventListener.Nodes, [], [id: Domo.EventListener.Nodes]),
-      ]]),
-      supervisor(Domo.EventGenerators, [[
-        worker(Domo.EventGenerator.Clock, [], [id: Domo.EventGenerator.Clock])
-      ]]),
+      supervisor(Domo.EventListeners, [
+        [
+          worker(Domo.EventListener.EventLog, [], id: Domo.EventListener.EventLog),
+          worker(Domo.EventListener.Networks, [], id: Domo.EventListener.Networks),
+          worker(Domo.EventListener.NetworkConnector, [], id: Domo.EventListener.NetworkConnector),
+          worker(Domo.EventListener.Nodes, [], id: Domo.EventListener.Nodes)
+        ]
+      ]),
+      supervisor(Domo.EventGenerators, [
+        [
+          worker(Domo.EventGenerator.Clock, [], id: Domo.EventGenerator.Clock)
+        ]
+      ])
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html

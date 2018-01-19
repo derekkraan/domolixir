@@ -23,9 +23,9 @@ defmodule ZWave.Discover do
   {network_type, usb device, lambda to start ZStick}
   """
   def do_discovery do
-    Nerves.UART.enumerate
+    Nerves.UART.enumerate()
     |> Enum.filter(&filter/1)
-    |> Enum.each(fn({usb_dev, _info}) ->
+    |> Enum.each(fn {usb_dev, _info} ->
       %{
         event_type: "network_discovered",
         network_identifier: usb_dev,
@@ -33,13 +33,16 @@ defmodule ZWave.Discover do
         paired: true,
         connected: false,
         pair: pair(usb_dev),
-        connect: connect(usb_dev),
-      } |> EventBus.send()
+        connect: connect(usb_dev)
+      }
+      |> EventBus.send()
     end)
   end
 
   defp pair(usb_dev), do: nil
-  defp connect(usb_dev), do: fn(_credentials) -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom) end
+
+  defp connect(usb_dev),
+    do: fn _credentials -> ZWave.ZStick.start(usb_dev, usb_dev |> String.to_atom()) end
 
   defp filter({usb_dev, %{product_id: 512, vendor_id: 1624}}), do: usb_dev
   defp filter(_), do: nil

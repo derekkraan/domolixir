@@ -3,10 +3,10 @@ defmodule ZWave.SensorMultiLevel do
 
   @command_class 0x31
   @name "Sensor Multi Level"
-  @sensormultilevelcmd_supportedget  0x01
+  @sensormultilevelcmd_supportedget 0x01
   @sensormultilevelcmd_supportedreport 0x02
-  @sensormultilevelcmd_get      0x04
-  @sensormultilevelcmd_report   0x05
+  @sensormultilevelcmd_get 0x04
+  @sensormultilevelcmd_report 0x05
 
   @sensortype_temperature 1
   @sensortype_general 2
@@ -41,26 +41,42 @@ defmodule ZWave.SensorMultiLevel do
   @sensortype_moisture 31
   @sensortype_maxtype 32
 
-  @size_mask    0x07
-  @scale_mask   0x18
-  @scale_shift  0x03
-  @precision_mask 0xe0
+  @size_mask 0x07
+  @scale_mask 0x18
+  @scale_shift 0x03
+  @precision_mask 0xE0
   @precision_shift 0x05
 
   require Logger
 
   def start_link(_name, _node_id), do: nil
 
-  def process_message(name, node_id, msg = <<@sof, _msgl, @request, @func_id_application_command_handler, _status, _node_id, _length, @command_class, _rest::binary>>) do
+  def process_message(
+        name,
+        node_id,
+        msg =
+          <<@sof, _msgl, @request, @func_id_application_command_handler, _status, _node_id,
+            _length, @command_class, _rest::binary>>
+      ) do
     private_process_message(name, node_id, msg)
   end
+
   def process_message(_, _, _), do: nil
 
-  def private_process_message(name, node_id, <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id, length, data::binary-size(length), _checksum>>) do
-    %{node_id: node_id, name: name, event_type: "sensor_multi_level", data: parse_data(data)} |> EventBus.send()
+  def private_process_message(
+        name,
+        node_id,
+        <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id,
+          length, data::binary-size(length), _checksum>>
+      ) do
+    %{node_id: node_id, name: name, event_type: "sensor_multi_level", data: parse_data(data)}
+    |> EventBus.send()
   end
 
-  def parse_data(<<@command_class, @sensormultilevelcmd_report, sensor_type, size_precision, value::binary>>) do
+  def parse_data(
+        <<@command_class, @sensormultilevelcmd_report, sensor_type, size_precision,
+          value::binary>>
+      ) do
     use Bitwise
     size = size_precision &&& @size_mask
     scale = (size_precision &&& @scale_mask) >>> @scale_shift
@@ -68,7 +84,11 @@ defmodule ZWave.SensorMultiLevel do
     size_bits = size * 8
     <<int_value::size(size_bits), _rest::binary>> = value
 
-    %{sensor_name: sensor_name(sensor_type), value: int_value / :math.pow(10, precision), unit: scale(sensor_type, scale)}
+    %{
+      sensor_name: sensor_name(sensor_type),
+      value: int_value / :math.pow(10, precision),
+      unit: scale(sensor_type, scale)
+    }
   end
 
   def commands, do: []

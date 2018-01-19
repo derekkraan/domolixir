@@ -35,13 +35,36 @@ defmodule ZWave.Alarm do
 
   def command_class, do: @command_class
 
-  def process_message(name, node_id, msg = <<@sof, _msgl, @request, @func_id_application_command_handler, _status, _node_id, _length, @command_class, _rest::binary>>) do
+  def process_message(
+        name,
+        node_id,
+        msg =
+          <<@sof, _msgl, @request, @func_id_application_command_handler, _status, _node_id,
+            _length, @command_class, _rest::binary>>
+      ) do
     private_process_message(name, node_id, msg)
   end
+
   def process_message(_, _, _), do: nil
 
-  def private_process_message(name, node_id, msg = <<@sof, _msglength, @request, @func_id_application_command_handler, _status, _node_id, _length, @command_class, @alarmcmd_report, alarm_type, alarm_level, _rest::binary>>) do
-    %{node_id: node_id, name: name, event_type: "alarm", data: %{alarm_type: alarm_type, alarm_type_name: alarm_type_name(alarm_type), alarm_level: alarm_level}} |> EventBus.send()
+  def private_process_message(
+        name,
+        node_id,
+        msg =
+          <<@sof, _msglength, @request, @func_id_application_command_handler, _status, _node_id,
+            _length, @command_class, @alarmcmd_report, alarm_type, alarm_level, _rest::binary>>
+      ) do
+    %{
+      node_id: node_id,
+      name: name,
+      event_type: "alarm",
+      data: %{
+        alarm_type: alarm_type,
+        alarm_type_name: alarm_type_name(alarm_type),
+        alarm_level: alarm_level
+      }
+    }
+    |> EventBus.send()
   end
 
   def alarm_type_name(@alarm_general), do: "General"

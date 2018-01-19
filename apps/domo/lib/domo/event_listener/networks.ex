@@ -3,7 +3,7 @@ defmodule Domo.EventListener.Networks do
   This module tracks all networks (eg, Hue, ZWave, etc) and their properties.
   """
 
-  defmodule Network, do: defstruct [:network_type, :network_identifier, :paired, :connected]
+  defmodule(Network, do: defstruct([:network_type, :network_identifier, :paired, :connected]))
 
   use GenServer
 
@@ -23,7 +23,11 @@ defmodule Domo.EventListener.Networks do
     {:reply, networks, networks}
   end
 
-  def handle_info({:event, %{event_type: "network_discovered", network_identifier: network_identifier} = event}, networks) do
+  def handle_info(
+        {:event,
+         %{event_type: "network_discovered", network_identifier: network_identifier} = event},
+        networks
+      ) do
     if Map.has_key?(networks, network_identifier) do
       # network already added
       {:noreply, networks}

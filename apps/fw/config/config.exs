@@ -18,7 +18,7 @@ use Mix.Config
 # involved with firmware updates.
 config :bootloader,
   init: [:nerves_runtime, :nerves_network, :nerves_firmware_ssh],
-  app: Mix.Project.config[:app]
+  app: Mix.Project.config()[:app]
 
 # Import target specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
@@ -27,7 +27,7 @@ config :bootloader,
 # import_config "#{Mix.Project.config[:target]}.exs"
 config :nerves_firmware_ssh,
   authorized_keys: [
-    File.read!(Path.join(System.user_home!, ".ssh/id_rsa.pub"))
+    File.read!(Path.join(System.user_home!(), ".ssh/id_rsa.pub"))
   ]
 
 config :nerves_network, :default,
@@ -48,7 +48,7 @@ config :web, Web.Endpoint,
   code_reloader: false
 
 config :ex_sshd,
-  app: Mix.Project.config[:app],
+  app: Mix.Project.config()[:app],
   port: 10022,
   credentials: [{"derek", "secretly"}]
 

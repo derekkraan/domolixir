@@ -7,18 +7,23 @@ defmodule HueBridge do
     :username,
     :bridge,
     :label,
-    :alive,
+    :alive
   ]
 
   @init_state %{
-    alive: true,
+    alive: true
   }
 
   def start(ip, username) do
     import Supervisor.Spec, warn: false
-    worker_spec = [worker(__MODULE__, [ip, username], [id: String.to_atom(ip)])]
+    worker_spec = [worker(__MODULE__, [ip, username], id: String.to_atom(ip))]
 
-    supervisor_spec = supervisor(Domo.NetworkSupervisor, [worker_spec, [name: network_supervisor_name(ip)]], [id: network_supervisor_name(ip)])
+    supervisor_spec =
+      supervisor(
+        Domo.NetworkSupervisor,
+        [worker_spec, [name: network_supervisor_name(ip)]],
+        id: network_supervisor_name(ip)
+      )
 
     case Domo.SystemSupervisor.start_child(supervisor_spec) do
       {:ok, _child} -> :ok

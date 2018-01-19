@@ -10,7 +10,7 @@ defmodule ZWave.Constants do
       @func_id_zw_enable_suc 0x52
       @func_id_zw_set_suc_node_id 0x54
 
-      @func_id_zw_get_random 0x1c
+      @func_id_zw_get_random 0x1C
 
       @func_id_zw_request_node_neighbor_update 0x48
 
@@ -18,8 +18,8 @@ defmodule ZWave.Constants do
 
       @func_id_zw_request_network_update 0x53
 
-      @func_id_zw_add_node_to_network 0x4a
-      @func_id_zw_remove_node_from_network 0x4b
+      @func_id_zw_add_node_to_network 0x4A
+      @func_id_zw_remove_node_from_network 0x4B
 
       @func_id_serial_api_get_init_data 0x02
       @func_id_serial_api_appl_node_information 0x03
@@ -35,7 +35,8 @@ defmodule ZWave.Constants do
 
       @suc_func_nodeid_server 0x01
 
-      @num_node_bitfield_bytes 29 # 29 = 232 / 8
+      # 29 = 232 / 8
+      @num_node_bitfield_bytes 29
       @max_num_nodes 232
 
       @add_node_any 0x01
@@ -51,7 +52,8 @@ defmodule ZWave.Constants do
       @transmit_option_no_route 0x10
       @transmit_option_explore 0x20
 
-      @transmit_options 0x25 # @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore
+      # @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore
+      @transmit_options 0x25
 
       @option_high_power 0x80
       @option_nwi 0x40
@@ -85,11 +87,11 @@ defmodule ZWave.Constants do
       @command_class_sensor_multilevel 0x31
       @command_class_sensor_binary 0x30
       @command_class_alarm 0x71
-      @command_class_sensor_alarm 0x9c
+      @command_class_sensor_alarm 0x9C
 
-      @request_flag_static    0x00000001
-      @request_flag_session   0x00000002
-      @request_flag_dynamic   0x00000004
+      @request_flag_static 0x00000001
+      @request_flag_session 0x00000002
+      @request_flag_dynamic 0x00000004
       @request_flag_afterMark 0x00000008
     end
   end

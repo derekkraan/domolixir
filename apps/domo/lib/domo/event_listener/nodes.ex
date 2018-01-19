@@ -3,7 +3,10 @@ defmodule Domo.EventListener.Nodes do
   This module tracks all nodes and their properties.
   """
 
-  defmodule Node, do: defstruct [:network_identifier, :node_identifier, :alive, :commands, :on_off_status]
+  defmodule(
+    Node,
+    do: defstruct([:network_identifier, :node_identifier, :alive, :commands, :on_off_status])
+  )
 
   use GenServer
 
@@ -23,7 +26,10 @@ defmodule Domo.EventListener.Nodes do
     {:reply, networks, networks}
   end
 
-  def handle_info({:event, %{event_type: "node_on", node_identifier: node_identifier} = event}, nodes) do
+  def handle_info(
+        {:event, %{event_type: "node_on", node_identifier: node_identifier} = event},
+        nodes
+      ) do
     if Map.has_key?(nodes, node_identifier) do
       updated_node = nodes[node_identifier] |> Map.merge(%{on_off_status: "on"})
       {:noreply, nodes |> Map.merge(%{node_identifier => updated_node})}
@@ -32,7 +38,10 @@ defmodule Domo.EventListener.Nodes do
     end
   end
 
-  def handle_info({:event, %{event_type: "node_off", node_identifier: node_identifier} = event}, nodes) do
+  def handle_info(
+        {:event, %{event_type: "node_off", node_identifier: node_identifier} = event},
+        nodes
+      ) do
     if Map.has_key?(nodes, node_identifier) do
       updated_node = nodes[node_identifier] |> Map.merge(%{on_off_status: "off"})
       {:noreply, nodes |> Map.merge(%{node_identifier => updated_node})}
@@ -41,7 +50,11 @@ defmodule Domo.EventListener.Nodes do
     end
   end
 
-  def handle_info({:event, %{event_type: "node_alive", node_identifier: node_identifier, alive: alive} = event}, nodes) do
+  def handle_info(
+        {:event,
+         %{event_type: "node_alive", node_identifier: node_identifier, alive: alive} = event},
+        nodes
+      ) do
     if Map.has_key?(nodes, node_identifier) do
       updated_node = nodes[node_identifier] |> Map.merge(%{alive: alive})
       {:noreply, nodes |> Map.merge(%{node_identifier => updated_node})}
@@ -50,7 +63,15 @@ defmodule Domo.EventListener.Nodes do
     end
   end
 
-  def handle_info({:event, %{event_type: "node_added", network_identifier: network_identifier, node_identifier: node_identifier} = event}, nodes) do
+  def handle_info(
+        {:event,
+         %{
+           event_type: "node_added",
+           network_identifier: network_identifier,
+           node_identifier: node_identifier
+         } = event},
+        nodes
+      ) do
     if Map.has_key?(nodes, node_identifier) do
       # node already added
       {:noreply, nodes}
@@ -61,7 +82,12 @@ defmodule Domo.EventListener.Nodes do
     end
   end
 
-  def handle_info({:event, %{event_type: "node_has_commands", commands: commands, node_identifier: node_identifier} = event}, nodes) do
+  def handle_info(
+        {:event,
+         %{event_type: "node_has_commands", commands: commands, node_identifier: node_identifier} =
+           event},
+        nodes
+      ) do
     if Map.has_key?(nodes, node_identifier) do
       updated_node = nodes[node_identifier] |> Map.merge(%{commands: commands})
       {:noreply, nodes |> Map.merge(%{node_identifier => updated_node})}

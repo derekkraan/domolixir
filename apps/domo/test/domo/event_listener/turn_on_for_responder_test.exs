@@ -3,9 +3,11 @@ defmodule TurnOnForResponderTest do
 
   defmodule TestRecorder do
     use GenServer
+
     def init(test_pid) do
       {:ok, test_pid}
     end
+
     def handle_call(msg, _from, test_pid) do
       Kernel.send(test_pid, msg)
       {:reply, :ok, test_pid}
@@ -14,7 +16,15 @@ defmodule TurnOnForResponderTest do
 
   setup do
     {:ok, recorder_pid} = GenServer.start_link(TestRecorder, self(), [])
-    {:ok, pid} = Domo.EventListener.TurnOnForResponder.start_link(%{event_type: "TestEvent", node_id: "foo"}, {recorder_pid, {:turn_on}}, {recorder_pid, {:turn_off}}, 10)
+
+    {:ok, pid} =
+      Domo.EventListener.TurnOnForResponder.start_link(
+        %{event_type: "TestEvent", node_id: "foo"},
+        {recorder_pid, {:turn_on}},
+        {recorder_pid, {:turn_off}},
+        10
+      )
+
     [pid: pid]
   end
 
@@ -32,7 +42,11 @@ defmodule TurnOnForResponderTest do
   end
 
   test "Partial match", context do
-    send(context[:pid], {:event, %{event_type: "TestEvent", node_id: "foo", info: "not included in match"}})
+    send(
+      context[:pid],
+      {:event, %{event_type: "TestEvent", node_id: "foo", info: "not included in match"}}
+    )
+
     assert_receive({:command, {:turn_on}}, 100)
     assert_receive({:command, {:turn_off}}, 100)
   end
