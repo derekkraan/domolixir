@@ -2,12 +2,14 @@ defmodule Domo.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :domo,
-     version: "0.1.0",
-     elixir: "~> 1.4",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps()]
+    [
+      app: :domo,
+      version: "0.1.0",
+      elixir: "~> 1.4",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      deps: deps()
+    ]
   end
 
   # Configuration for the OTP application
@@ -15,8 +17,7 @@ defmodule Domo.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     # Specify extra applications you'll use from Erlang/Elixir
-    [extra_applications: [:sasl, :logger, :xmerl],
-     mod: {Domo.Application, []}]
+    [extra_applications: [:sasl, :logger, :xmerl], mod: {Domo.Application, []}]
   end
 
   # Dependencies can be Hex packages:
@@ -31,13 +32,12 @@ defmodule Domo.Mixfile do
   defp deps do
     [
       {:poison, "~> 3.1"},
-      # {:huex, "~> 0.6"},
-      {:huex, github: "derekkraan/huex"},
+      {:huex, "~> 0.7"},
       {:httpotion, "~> 3.0"},
       {:nerves_ssdp_client, "~> 0.1"},
       {:nerves_uart, "~> 1.0"},
       {:benchfella, "~> 0.3.0"},
-      {:timex, "~> 3.1"},
+      {:timex, "~> 3.1"}
     ]
   end
 end
