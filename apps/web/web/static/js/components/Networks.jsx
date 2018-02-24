@@ -2,6 +2,7 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { t } from '../lib/translations'
 import { store } from '../store'
+import { csrfToken } from './Nodes.jsx'
 
 const mapStateToProps = ({nodes, networks}) => {
   return {

@@ -112,4 +112,4 @@ const CommandView = ({node, command, commandTemplate, setProperty, onSubmit}) =>
   </form>
 </div>
 
-const csrfToken = () => document.head.querySelector('meta[name=csrf]').content
+export const csrfToken = () => document.head.querySelector('meta[name=csrf]').content
