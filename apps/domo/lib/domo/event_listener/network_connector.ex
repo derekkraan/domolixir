@@ -17,6 +17,10 @@ defmodule Domo.EventListener.NetworkConnector do
     GenServer.call(__MODULE__, {:connect, network_identifier, credentials})
   end
 
+  def pair(network_identifier) do
+    GenServer.call(__MODULE__, {:pair, network_identifier})
+  end
+
   def handle_call({:connect, network_identifier, credentials}, _from, connect_functions) do
     connect_functions |> IO.inspect()
     :ok = connect_functions[network_identifier][:connect].(credentials)
@@ -24,7 +28,7 @@ defmodule Domo.EventListener.NetworkConnector do
   end
 
   def handle_call({:pair, network_identifier}, _from, connect_functions) do
-    :ok = connect_functions["network_identifier"][:pair].()
+    :ok = connect_functions[network_identifier][:pair].()
     {:reply, :ok, connect_functions}
   end
 
