@@ -84,6 +84,15 @@ defmodule ZWave.ZStick do
         callback_commands: %{}
     }
 
+    %{
+      event_type: "node_added",
+      network_identifier: name,
+      node_identifier: name,
+      commands: [[:add_device]],
+      alive: true
+    }
+    |> EventBus.send()
+
     Process.send_after(self(), :tick, 100)
 
     {:ok, do_init_sequence(state)}
@@ -101,7 +110,7 @@ defmodule ZWave.ZStick do
     {:noreply, handle_message_from_zstick(message, state)}
   end
 
-  def handle_info({:command, {:remove_device}}, state) do
+  def handle_call({:command, {:remove_device}}, _from, state) do
     use Bitwise
 
     {state, command} =
@@ -114,7 +123,7 @@ defmodule ZWave.ZStick do
     {:noreply, state |> add_command(command)}
   end
 
-  def handle_info({:command, {:add_device}}, state) do
+  def handle_call({:command, {:add_device}}, _from, state) do
     use Bitwise
 
     {state, command} =
