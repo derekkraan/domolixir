@@ -3,25 +3,31 @@ defmodule Fw.Mixfile do
 
   @target System.get_env("MIX_TARGET") || "host"
 
-  Mix.shell.info([:green, """
-  Mix environment
-    MIX_TARGET:   #{@target}
-    MIX_ENV:      #{Mix.env}
-  """, :reset])
+  Mix.shell().info([
+    :green,
+    """
+    Mix environment
+      MIX_TARGET:   #{@target}
+      MIX_ENV:      #{Mix.env()}
+    """,
+    :reset
+  ])
 
   def project do
-    [app: :fw,
-     version: "0.1.0",
-     elixir: "~> 1.4",
-     target: @target,
-     archives: [nerves_bootstrap: "~> 0.6"],
-     deps_path: "deps/#{@target}",
-     build_path: "_build/#{@target}",
-     lockfile: "mix.lock.#{@target}",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     aliases: aliases(@target),
-     deps: deps()]
+    [
+      app: :fw,
+      version: "0.1.0",
+      elixir: "~> 1.4",
+      target: @target,
+      archives: [nerves_bootstrap: "~> 1.0"],
+      deps_path: "deps/#{@target}",
+      build_path: "_build/#{@target}",
+      lockfile: "mix.lock.#{@target}",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      aliases: aliases(@target),
+      deps: deps()
+    ]
   end
 
   # Configuration for the OTP application.
@@ -36,9 +42,9 @@ defmodule Fw.Mixfile do
   def application("host") do
     [extra_applications: [:logger]]
   end
+
   def application(_target) do
-    [mod: {Fw.Application, []},
-     extra_applications: [:logger]]
+    [mod: {Fw.Application, []}, extra_applications: [:logger]]
   end
 
   # Dependencies can be Hex packages:
@@ -53,13 +59,13 @@ defmodule Fw.Mixfile do
   def deps do
     [
       {:nerves, "~> 0.8", runtime: false},
-      {:web, path: "../web"},
-    ] ++
-    deps(@target)
+      {:web, path: "../web"}
+    ] ++ deps(@target)
   end
 
   # Specify target specific dependencies
   def deps("host"), do: []
+
   def deps(target) do
     [
       {:bootloader, "~> 0.1"},
@@ -67,7 +73,7 @@ defmodule Fw.Mixfile do
       {:nerves_firmware_ssh, "~> 0.2"},
       {:nerves_network, "~> 0.3"},
       {:nerves_ntp, github: "evokly/nerves_ntp"},
-      {:mdns_configuration, path: "../mdns_configuration"},
+      {:mdns_configuration, path: "../mdns_configuration"}
     ] ++ system(target)
   end
 
@@ -79,13 +85,15 @@ defmodule Fw.Mixfile do
   def system("ev3"), do: [{:nerves_system_ev3, ">= 0.0.0", runtime: false}]
   def system("qemu_arm"), do: [{:nerves_system_qemu_arm, ">= 0.0.0", runtime: false}]
   def system("x86_64"), do: [{:nerves_system_x86_64, ">= 0.0.0", runtime: false}]
-  def system(target), do: Mix.raise "Unknown MIX_TARGET: #{target}"
+  def system(target), do: Mix.raise("Unknown MIX_TARGET: #{target}")
 
   # We do not invoke the Nerves Env when running on the Host
   def aliases("host"), do: []
-  def aliases(_target) do
-    ["deps.precompile": ["nerves.precompile", "deps.precompile"],
-     "deps.loadpaths":  ["deps.loadpaths", "nerves.loadpaths"]]
-  end
 
+  def aliases(_target) do
+    [
+      "deps.precompile": ["nerves.precompile", "deps.precompile"],
+      "deps.loadpaths": ["deps.loadpaths", "nerves.loadpaths"]
+    ]
+  end
 end

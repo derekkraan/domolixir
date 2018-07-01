@@ -4,33 +4,23 @@ defmodule ZWave.Node do
   use GenServer
   use ZWave.Constants
 
-  defstruct [
-    :alive,
-    :total_errors,
-    :node_id,
-    :name,
-    :capabilities,
-    :listening,
-    :frequent_listening,
-    :basic_class,
-    :generic_class,
-    :specific_class,
-    :command_classes,
-    :command_class_modules,
-    :generic_label,
-    :specific_label,
-    :label,
-    :number_association_groups,
-    :initialized
-  ]
-
-  @init_state %{
-    alive: true,
-    total_errors: 0,
-    command_classes: [],
-    command_class_modules: [],
-    initialized: false
-  }
+  defstruct alive: true,
+            total_errors: 0,
+            node_id: nil,
+            name: nil,
+            capabilities: nil,
+            listening: nil,
+            frequent_listening: nil,
+            basic_class: nil,
+            generic_class: nil,
+            specific_class: nil,
+            command_classes: [],
+            command_class_modules: [],
+            generic_label: nil,
+            specific_label: nil,
+            label: nil,
+            number_association_groups: nil,
+            initialized: false
 
   @securityflag_security 0x01
   @securityflag_controller 0x02
@@ -78,7 +68,7 @@ defmodule ZWave.Node do
   end
 
   def init({name, node_id}) do
-    state = %ZWave.Node{} |> Map.merge(@init_state) |> Map.merge(%{node_id: node_id, name: name})
+    state = %ZWave.Node{node_id: node_id, name: name}
 
     %{
       event_type: "node_added",
@@ -191,9 +181,24 @@ defmodule ZWave.Node do
     add_command_class(state, command_class)
   end
 
+  defp add_command_classes(%{command_classes: command_classes} = state) do
+    add_command_classes(state, command_classes)
+  end
+
+  defp add_command_classes(state, []), do: state
+
+  defp add_command_classes(state, [command_class | command_classes]) do
+    add_command_class(state, command_class)
+    |> add_command_classes(command_classes)
+  end
+
   defp add_command_class(state, command_class) do
-    if !Enum.member?(state.command_classes, command_class) do
-      command_class_module = ZWave.CommandClasses.command_class(command_class)
+    Logger.debug(inspect(state.command_classes))
+    Logger.debug("add command class #{inspect(command_class)} for node #{state.node_id}?")
+    command_class_module = ZWave.CommandClasses.command_class(command_class)
+
+    if !Enum.member?(state.command_class_modules, command_class_module) do
+      Logger.debug("starting #{inspect(command_class_module)} for node #{state.node_id}")
       command_class_module.start_link(state.name, state.node_id)
 
       %ZWave.Node{
@@ -268,6 +273,7 @@ defmodule ZWave.Node do
         initialized: true
     }
     |> Map.merge(OpenZWaveConfig.get_information(generic_class, specific_class))
+    |> add_command_classes()
     |> add_wakeup_command_class()
     |> add_command_class(ZWave.NoOperation.command_class())
     |> add_command_class(ZWave.Association.command_class())

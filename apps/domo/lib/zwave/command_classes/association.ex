@@ -36,8 +36,7 @@ defmodule ZWave.Association do
     {:ok, state}
   end
 
-  def process_name(name, node_id),
-    do: :"#{ZWave.Node.node_name(name, node_id)}_association_command_class"
+  def process_name(name, node_id), do: :"#{ZWave.Node.node_name(name, node_id)}_#{__MODULE__}"
 
   def command_class, do: @command_class
 

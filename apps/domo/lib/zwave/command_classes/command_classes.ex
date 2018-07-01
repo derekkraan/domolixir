@@ -5,15 +5,25 @@ defmodule ZWave.CommandClasses do
   @command_classes %{
     @command_class_basic => ZWave.Basic,
     @command_class_switch_multilevel => ZWave.SwitchMultilevel,
+    @command_class_switch_all => ZWave.SwitchAll,
+    @command_class_multi_instance => ZWave.MultiInstance,
     @command_class_association => ZWave.Association,
     @command_class_wake_up => ZWave.WakeUp,
     @command_class_sensor_multilevel => ZWave.SensorMultiLevel,
     @command_class_sensor_binary => ZWave.SensorBinary,
+    @command_class_meter => ZWave.Meter,
     @command_class_alarm => ZWave.Alarm,
     @command_class_sensor_alarm => ZWave.SensorAlarm
   }
 
-  def command_class(class), do: @command_classes |> Map.get(class, ZWave.Unsupported)
+  def command_class(class) do
+    class_module =
+      @command_classes
+      |> Map.get(class, ZWave.Unsupported)
+
+    Logger.debug("command class found: #{inspect(class)} => #{inspect(class_module)}")
+    class_module
+  end
 
   defp supports_command?(class, command) do
     class.commands

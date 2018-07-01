@@ -82,12 +82,15 @@ defmodule ZWave.Constants do
 
       @command_class_basic 0x20
       @command_class_switch_multilevel 0x26
+      @command_class_switch_all 0x27
+      @command_class_meter 0x32
       @command_class_association 0x85
       @command_class_wake_up 0x84
       @command_class_sensor_multilevel 0x31
       @command_class_sensor_binary 0x30
       @command_class_alarm 0x71
       @command_class_sensor_alarm 0x9C
+      @command_class_multi_instance 0xEF
 
       @request_flag_static 0x00000001
       @request_flag_session 0x00000002
