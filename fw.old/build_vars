@@ -1,2 +1,0 @@
-export MIX_TARGET=rpi3
-export MIX_ENV=prod
