@@ -15,8 +15,32 @@ config :nerves, :firmware, rootfs_overlay: "rootfs_overlay"
 # involved with firmware updates.
 
 config :shoehorn,
-  init: [:nerves_runtime],
+  init: [:nerves_runtime, :nerves_network, :nerves_firmware_ssh],
   app: Mix.Project.config()[:app]
+
+config :nerves_network, :default,
+  eth0: [
+    ipv4_address_method: :dhcp
+  ]
+
+config :nerves_firmware_ssh,
+  authorized_keys: [
+    File.read!(Path.join(System.user_home!(), ".ssh/id_rsa.pub"))
+  ]
+
+config :web, Web.Endpoint,
+  http: [port: 80],
+  url: [host: "localhost", port: 80],
+  secret_key_base: "PqJn6VoHDJkByj012wOBG8jt+p9GVRkhXvZpZfb9GdnAGy71G+ORBoOyluamRl/3",
+  root: Path.dirname(__DIR__),
+  server: true,
+  render_errors: [accepts: ~w(html json)],
+  pubsub: [name: Nerves.PubSub],
+  code_reloader: false
+
+config :mdns_configuration,
+  ifname: "wlan0",
+  mdns_domain: "home.local"
 
 # Use Ringlogger as the logger backend and remove :console.
 # See https://hexdocs.pm/ring_logger/readme.html for more information on

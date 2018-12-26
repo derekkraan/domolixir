@@ -52,6 +52,9 @@ defmodule Fw.MixProject do
   defp deps(target) do
     [
       {:nerves_runtime, "~> 0.6"},
+      {:nerves_firmware_ssh, "~> 0.4"},
+      {:nerves_network, "~> 0.3"},
+      {:nerves_time, "~> 0.2"},
       {:mdns_configuration, path: "../mdns_configuration"}
     ] ++ system(target)
   end
