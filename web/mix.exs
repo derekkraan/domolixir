@@ -42,6 +42,7 @@ defmodule Web.Mixfile do
       {:phoenix_live_reload, "~> 1.0", only: :dev},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"},
+      {:jason, "~> 1.1"},
       {:plug_cowboy, "~> 1.0"},
       {:domo, path: "../domo"}
     ]

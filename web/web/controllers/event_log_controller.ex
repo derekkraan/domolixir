@@ -3,10 +3,8 @@ defmodule Web.EventLogController do
 
   def log(conn, params) do
     logs =
-      Domo.EventListener.EventLog.empty_log()
-      |> Enum.map(&inspect/1)
-      |> Enum.map(fn str -> ">>> #{str}" end)
-      |> Enum.join("\n\n")
+      RingLogger.next()
+      |> Jason.encode!()
 
     text(conn, logs)
   end
