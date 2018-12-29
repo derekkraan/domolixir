@@ -28,6 +28,8 @@ config :nerves_firmware_ssh,
     File.read!(Path.join(System.user_home!(), ".ssh/id_rsa.pub"))
   ]
 
+config :tzdata, :autoupdate, :disabled
+
 config :web, Web.Endpoint,
   http: [
     port:
