@@ -6,7 +6,7 @@ defmodule Web.EventLogController do
       RingLogger.get()
       |> Enum.map(fn {level, {_, msg, ts, mdata}} ->
         Logger.Formatter.format(
-          Logger.Formatter.compile("[$level] $message"),
+          Logger.Formatter.compile("$time [$level] $message"),
           level,
           msg,
           ts,
