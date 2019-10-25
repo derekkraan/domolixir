@@ -33,7 +33,7 @@ defmodule ZWave.MultiInstance do
   def init({name, node_id}) do
     Logger.debug("Starting MULTIINSTANCE")
     state = %State{name: name, node_id: node_id}
-    request_instances(state) |> IO.inspect() |> ZWave.ZStick.queue_command(name)
+    ZWave.ZStick.queue_command(name, request_instances(state))
 
     {:ok, state}
   end
@@ -59,10 +59,14 @@ defmodule ZWave.MultiInstance do
   end
 
   def handle_info(
-        {:message_from_zstick, <<@sof, _length, @response, @func_id_zw_get_node_protocol_info>>},
-        state
+        {:message_from_zstick,
+         <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _rest::binary>>},
+        {:noreply, state}
       ) do
   end
+
+  # <<1, 9, 1, 65, 147, 22, 1, 2, 2, 1, 51>>
+  # def handle_info({:message_from_zstick, <<@sof, _length, 
 
   def handle_info({:message_from_zstick, msg}, state) do
     Logger.debug("got unknown message #{inspect(msg)} in #{__MODULE__} for node #{state.node_id}")

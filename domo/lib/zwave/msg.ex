@@ -1,13 +1,13 @@
 defmodule ZWave.Msg do
-  defstruct [
-    :type,
-    :function,
-    :data,
-    :callback_id,
-    :target_node_id,
-    :expected_response,
-    :backoff_time
-  ]
+  defstruct type: nil,
+            function: nil,
+            data: [],
+            callback_id: nil,
+            target_node_id: nil,
+            expected_response: 0,
+            backoff_time: 0
+
+  require Logger
 
   use ZWave.Constants
 
@@ -25,8 +25,14 @@ defmodule ZWave.Msg do
     |> add_data(data)
     |> add_callback_id(callback_id)
     |> add_length()
+    |> log_it()
     |> add_checksum()
     |> to_binary()
+  end
+
+  defp log_it(msg) do
+    Logger.debug("calculating checksum for: #{inspect(msg)}")
+    msg
   end
 
   def prepare(msg), do: msg

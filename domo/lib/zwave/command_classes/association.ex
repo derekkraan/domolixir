@@ -6,10 +6,7 @@ defmodule ZWave.Association do
   @command_class 0x85
   @name "Association"
 
-  defmodule(
-    State,
-    do: defstruct([:name, :node_id, :number_association_groups, :associations_initialized])
-  )
+  defstruct [:name, :node_id, :number_association_groups, :associations_initialized]
 
   @init_state %{associations_initialized: false}
 
@@ -24,16 +21,23 @@ defmodule ZWave.Association do
   @associationcmd_groupingsreport 0x06
 
   def start_link(name, node_id) do
-    Logger.debug("STARTING ASSOCIATION")
+    Logger.debug("STARTING ASSOCIATION for node #{inspect(process_name(name, node_id))}")
 
     GenServer.start_link(__MODULE__, {name, node_id}, name: process_name(name, node_id))
-    |> IO.inspect()
   end
 
   def init({name, node_id}) do
-    state = %State{} |> Map.merge(@init_state) |> Map.merge(%{node_id: node_id, name: name})
-    association_groupings_get_command(name, node_id) |> ZWave.ZStick.queue_command(name)
-    {:ok, state}
+    state = Map.merge(%__MODULE__{}, @init_state) |> Map.merge(%{node_id: node_id, name: name})
+    {:ok, state, {:continue, :get_groupings}}
+  end
+
+  def handle_continue(:get_groupings, state) do
+    ZWave.ZStick.queue_command(
+      state.name,
+      association_groupings_get_command(state.name, state.node_id)
+    )
+
+    {:noreply, state}
   end
 
   def process_name(name, node_id), do: :"#{ZWave.Node.node_name(name, node_id)}_#{__MODULE__}"
@@ -80,15 +84,17 @@ defmodule ZWave.Association do
     |> Enum.each(fn group_id ->
       Logger.debug("setting association #{group_id}")
 
-      association_set_command(controller_node_id, group_id, state.node_id)
-      |> ZWave.ZStick.queue_command(state.name)
+      ZWave.ZStick.queue_command(
+        state.name,
+        association_set_command(controller_node_id, group_id, state.node_id)
+      )
     end)
 
     state
   end
 
   # def handle({:association_set, to_node_id, group_id}, node_id) do
-  #   association_set_command(to_node_id, group_id, node_id) |> ZWave.ZStick.queue_command(name)
+  #   ZWave.ZStick.queue_command(name, association_set_command(to_node_id, group_id, node_id))
   # end
 
   def association_set_command(to_node_id, group_id, node_id) do
@@ -100,9 +106,6 @@ defmodule ZWave.Association do
     }
   end
 
-  def process_message(name, node_id, message),
-    do: send(process_name(name, node_id), {:message_from_zstick, message})
-
   def handle_info({:message_from_zstick, message}, state) do
     {:noreply, private_process_message(state, message)}
   end
@@ -113,7 +116,7 @@ defmodule ZWave.Association do
           @command_class, @associationcmd_groupingsreport, num_groups, _checksum>>
       ) do
     Logger.debug("Number of association groups for #{node_id} is #{num_groups}")
-    %State{state | number_association_groups: num_groups} |> add_associations()
+    %__MODULE__{state | number_association_groups: num_groups} |> add_associations()
   end
 
   def private_process_message(state, _message), do: state

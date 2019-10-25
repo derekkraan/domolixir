@@ -17,12 +17,13 @@ defmodule ZWave.WakeUp do
 
   def init({name, node_id}) do
     state =
-      %State{} |> Map.merge(@init_state)
+      %State{}
+      |> Map.merge(@init_state)
       |> Map.merge(%{node_id: node_id, name: name, command_queue: :queue.new()})
 
-    wakeup_get_interval_command(node_id) |> ZWave.ZStick.queue_command(name)
-    wakeup_no_more_information_command(node_id) |> ZWave.ZStick.queue_command(name)
-    wakeup_command_interval_report(node_id) |> ZWave.ZStick.queue_command(name)
+    ZWave.ZStick.queue_command(name, wakeup_get_interval_command(node_id))
+    ZWave.ZStick.queue_command(name, wakeup_no_more_information_command(node_id))
+    ZWave.ZStick.queue_command(name, wakeup_command_interval_report(node_id))
     {:ok, state}
   end
 
@@ -82,12 +83,11 @@ defmodule ZWave.WakeUp do
   def send_commands(state = %{awake: true}) do
     case :queue.out(state.command_queue) do
       {{:value, current_command}, command_queue} ->
-        current_command |> ZWave.ZStick.queue_command(state.name)
+        ZWave.ZStick.queue_command(state.name, current_command)
         %State{state | command_queue: command_queue}
 
       {:empty, command_queue} ->
-        wakeup_no_more_information_command(state.node_id)
-        |> ZWave.ZStick.queue_command(state.name)
+        ZWave.ZStick.queue_command(state.name, wakeup_no_more_information_command(state.node_id))
 
         %State{state | command_queue: command_queue, awake: false}
     end

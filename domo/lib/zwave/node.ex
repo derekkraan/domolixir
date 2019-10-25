@@ -32,21 +32,22 @@ defmodule ZWave.Node do
   @securityflag_optionalfunctionality 0x80
 
   def start_link(name, node_id) do
-    Logger.debug("STARTING NODE #{node_id}")
+    Logger.debug("STARTING NODE #{node_name(name, node_id)}")
     GenServer.start_link(__MODULE__, {name, node_id}, name: node_name(name, node_id))
   end
 
   def start(controller_name, node_id) do
     import Supervisor.Spec
 
-    case Supervisor.start_child(
-           ZWave.ZStick.network_supervisor_name(controller_name),
-           worker(
-             __MODULE__,
-             [controller_name, node_id],
-             id: __MODULE__.node_name(controller_name, node_id)
-           )
-         ) do
+    Supervisor.start_child(
+      ZWave.ZStick.network_supervisor_name(controller_name),
+      worker(
+        __MODULE__,
+        [controller_name, node_id],
+        id: node_name(controller_name, node_id)
+      )
+    )
+    |> case do
       {:ok, _child} -> :ok
       {:error, {:already_started, _pid}} -> :ok
       error -> error |> IO.inspect()
@@ -57,13 +58,13 @@ defmodule ZWave.Node do
     :ok =
       Supervisor.terminate_child(
         ZWave.ZStick.network_supervisor_name(controller_name),
-        __MODULE__.node_name(controller_name, node_id)
+        node_name(controller_name, node_id)
       )
 
     :ok =
       Supervisor.delete_child(
         ZWave.ZStick.network_supervisor_name(controller_name),
-        __MODULE__.node_name(controller_name, node_id)
+        node_name(controller_name, node_id)
       )
   end
 
@@ -84,23 +85,11 @@ defmodule ZWave.Node do
 
   def node_name(name, node_id), do: :"#{name}_node_#{node_id}"
 
-  defp request_state(state) do
-    %ZWave.Msg{
-      type: @request,
-      function: @func_id_zw_get_node_protocol_info,
-      data: [state.node_id],
-      target_node_id: state.node_id
-    }
-    |> ZWave.ZStick.queue_command(state.name)
-
-    state
-  end
-
   #
   # -- messages from controller --
   #
   def handle_call({:command, command}, _from, state) do
-    IO.puts("RECEIVED COMMAND #{command |> inspect}")
+    Logger.debug("RECEIVED COMMAND #{command |> inspect}")
 
     case ZWave.CommandClasses.dispatch_command(command, state.node_id) do
       nil -> nil
@@ -111,7 +100,7 @@ defmodule ZWave.Node do
   end
 
   def handle_info({:command, cmd}, state) do
-    IO.puts("RECEIVED COMMAND #{cmd |> inspect}")
+    Logger.debug("RECEIVED COMMAND #{cmd |> inspect}")
 
     case ZWave.CommandClasses.dispatch_command(cmd, state.node_id) do
       nil -> nil
@@ -119,12 +108,6 @@ defmodule ZWave.Node do
     end
 
     {:noreply, state}
-  end
-
-  def do_cmd(cmd, state) do
-    # TODO: is setting target_node_id correct here?
-    %ZWave.Msg{cmd | target_node_id: state.node_id}
-    |> ZWave.ZStick.queue_command(state.name)
   end
 
   #
@@ -169,16 +152,13 @@ defmodule ZWave.Node do
   end
 
   def handle_info({:retry_message, command}, state) do
-    command |> ZWave.ZStick.queue_command(state.name)
+    ZWave.ZStick.queue_command(state.name, command)
     {:noreply, state}
   end
 
-  def process_message(
-        state,
-        <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id,
-          _length, command_class, _rest::binary>>
-      ) do
-    add_command_class(state, command_class)
+  defp do_cmd(cmd, state) do
+    # TODO: is setting target_node_id correct here?
+    ZWave.ZStick.queue_command(state.name, %ZWave.Msg{cmd | target_node_id: state.node_id})
   end
 
   defp add_command_classes(%{command_classes: command_classes} = state) do
@@ -229,11 +209,19 @@ defmodule ZWave.Node do
     state
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _cap, _freq, _some,
-          _basic, 0, _rest::binary>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _msglength, @request, @func_id_application_command_handler, _status, node_id,
+           _length, command_class, _rest::binary>>
+       ) do
+    add_command_class(state, command_class)
+  end
+
+  defp process_message(
+         state,
+         <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _cap, _freq, _some,
+           _basic, 0, _rest::binary>>
+       ) do
     %{
       event_type: "node_alive",
       alive: false,
@@ -244,14 +232,14 @@ defmodule ZWave.Node do
     %{state | alive: false}
   end
 
-  def process_message(
-        state = %{initialized: false},
-        <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities,
-          frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>
-      ) do
+  defp process_message(
+         state = %{initialized: false},
+         <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities,
+           frequent_listening, _something, basic_class, generic_class, specific_class, _checksum>>
+       ) do
     use Bitwise
 
-    ZWave.NoOperation.noop_command(state.node_id) |> ZWave.ZStick.queue_command(state.name)
+    ZWave.ZStick.queue_command(state.name, ZWave.NoOperation.noop_command(state.node_id))
 
     %{
       event_type: "node_alive",
@@ -259,6 +247,12 @@ defmodule ZWave.Node do
       node_identifier: node_name(state.name, state.node_id)
     }
     |> EventBus.send()
+
+    Logger.info(
+      "#{state.node_id}: #{
+        inspect(OpenZWaveConfig.get_information(generic_class, specific_class))
+      }"
+    )
 
     %ZWave.Node{
       state
@@ -279,10 +273,21 @@ defmodule ZWave.Node do
     |> add_command_class(ZWave.Association.command_class())
   end
 
-  def add_wakeup_command_class(state = %{listening: 0}),
+  defp process_message(state, _msg), do: state
+
+  defp add_wakeup_command_class(state = %{listening: 0}),
     do: state |> add_command_class(ZWave.WakeUp.command_class())
 
-  def add_wakeup_command_class(state), do: state
+  defp add_wakeup_command_class(state), do: state
 
-  def process_message(state, _msg), do: state
+  defp request_state(state) do
+    ZWave.ZStick.queue_command(state.name, %ZWave.Msg{
+      type: @request,
+      function: @func_id_zw_get_node_protocol_info,
+      data: [state.node_id],
+      target_node_id: state.node_id
+    })
+
+    state
+  end
 end

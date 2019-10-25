@@ -2,30 +2,24 @@ defmodule ZWave.ZStick do
   require Logger
   use GenServer
 
+  @tick_interval 10
+  @command_timeout_interval 2000
+
   use ZWave.Constants
 
-  defmodule(
-    State,
-    do:
-      defstruct([
-        :name,
-        :usb_zstick_pid,
-        :command_queue,
-        :current_command,
-        :controller_node_id,
-        :node_bitfield,
-        :current_callback_id,
-        :callback_commands,
-        :alive,
-        :label,
-        :command_classes
-      ])
-  )
-
-  def transmit_options do
-    use Bitwise
-    @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore
-  end
+  defstruct([
+    :name,
+    :usb_zstick_pid,
+    :command_queue,
+    :current_command,
+    :controller_node_id,
+    :node_bitfield,
+    :current_callback_id,
+    :callback_commands,
+    :alive,
+    :label,
+    :command_classes
+  ])
 
   def start(usb_device, name) do
     import Supervisor.Spec, warn: false
@@ -45,33 +39,22 @@ defmodule ZWave.ZStick do
     end
   end
 
+  def queue_command(pid, command), do: GenServer.cast(pid, {:queue_command, command})
+
   def network_supervisor_name(name), do: :"#{name}_network_supervisor"
+
+  def transmit_options do
+    use Bitwise
+    @transmit_option_ack ||| @transmit_option_auto_route ||| @transmit_option_explore
+  end
 
   def start_link(usb_device, name) do
     Logger.debug("STARTING ZSTICK")
     GenServer.start_link(__MODULE__, {usb_device, name}, name: name)
   end
 
-  def handle_call(:get_callback_id, _from, state) do
-    next_id = next_callback_id(state.current_callback_id)
-    {:reply, next_id, %State{state | current_callback_id: next_id}}
-  end
-
-  def next_callback_id(current_callback_id) do
-    rem(current_callback_id + 1, 0xFF)
-    |> max(10)
-  end
-
-  def handle_call(:get_information, _from, state) do
-    {:reply, state, state}
-  end
-
-  def handle_call(:get_commands, _from, state) do
-    {:reply, [[:add_device], [:remove_device]], state}
-  end
-
   def init({usb_device, name}) do
-    state = %State{name: name, label: name, alive: true, command_classes: []}
+    state = %__MODULE__{name: name, label: name, alive: true, command_classes: []}
     {:ok, usb_zstick_pid} = ZStick.UART.connect(usb_device)
     {:ok, _reader_pid} = ZStick.Reader.start_link(usb_zstick_pid, self())
 
@@ -98,16 +81,17 @@ defmodule ZWave.ZStick do
     {:ok, do_init_sequence(state)}
   end
 
-  def supervisor_name(name), do: :"#{name}_supervisor"
-
-  def queue_command(command, pid), do: GenServer.cast(pid, {:queue_command, command})
-
-  def handle_cast({:queue_command, command}, state) do
-    {:noreply, add_command(state, command)}
+  def handle_call(:get_callback_id, _from, state) do
+    next_id = next_callback_id(state.current_callback_id)
+    {:reply, next_id, %__MODULE__{state | current_callback_id: next_id}}
   end
 
-  def handle_cast({:message_from_zstick, message}, state) do
-    {:noreply, handle_message_from_zstick(message, state)}
+  def handle_call(:get_information, _from, state) do
+    {:reply, state, state}
+  end
+
+  def handle_call(:get_commands, _from, state) do
+    {:reply, [[:add_device], [:remove_device]], state}
   end
 
   def handle_call({:command, {:remove_device}}, _from, state) do
@@ -136,68 +120,40 @@ defmodule ZWave.ZStick do
     {:noreply, state |> add_command(command)}
   end
 
-  def handle_message_from_zstick(:sendnak, state) do
-    Logger.debug("RECEIVED #{:sendnak} |> sending NAK")
-    <<@nak>> |> send_msg(state.usb_zstick_pid)
-    state
+  def handle_cast({:queue_command, command}, state) do
+    {:noreply, add_command(state, command)}
   end
 
-  def handle_message_from_zstick(<<@can>>, state) do
-    Logger.debug("RECEIVED CAN")
-    send_msg(<<@can>>, state.usb_zstick_pid)
-
-    if state.current_command do
-      send_msg(state.current_command, state.usb_zstick_pid)
-    end
-
-    state
+  def handle_cast({:message_from_zstick, message}, state) do
+    {:noreply, handle_message_from_zstick(message, state)}
   end
 
-  def handle_message_from_zstick(message, state) do
-    Logger.debug("RECEIVED #{message |> inspect}")
+  def handle_info({:command_timeout, command}, state = %{current_command: command}) do
+    Logger.error("timeout #{command |> inspect} after #{@command_timeout_interval}")
 
-    if message != <<@ack>> do
-      send_msg(<<@ack>>, state.usb_zstick_pid)
+    if state.current_command.target_node_id do
+      try do
+        send(
+          ZWave.Node.node_name(state.name, state.current_command.target_node_id),
+          {:zstick_send_error, state.current_command}
+        )
+      rescue
+        e in ArgumentError ->
+          Process.send_after(self(), {:command_timeout, command}, 2000)
+      end
     end
 
-    state = process_message(state, message)
-
-    if ZWave.Msg.required_response?(state.current_command, message) do
-      %State{state | current_command: nil}
-    else
-      state
-    end
+    {:noreply, %__MODULE__{state | current_command: nil}}
   end
 
-  @tick_interval 10
-  @command_timeout_interval 2000
-
-  def exec_command(state = %State{current_command: nil}), do: state
-
-  def exec_command(state) do
-    Process.send_after(
-      self(),
-      {:command_timeout, state.current_command},
-      @command_timeout_interval
-    )
-
-    send_msg(state.current_command, state.usb_zstick_pid)
-
-    if ZWave.Msg.required_response?(state.current_command, nil) do
-      %State{state | current_command: nil}
-    else
-      state
-    end
-  end
-
-  def handle_info(:tick, state = %State{command_queue: {[], []}, current_command: nil}),
+  def handle_info(:tick, state = %__MODULE__{command_queue: {[], []}, current_command: nil}),
     do: noop_tick(state)
 
-  def handle_info(:tick, state = %State{current_command: current_command})
+  def handle_info(:tick, state = %__MODULE__{current_command: current_command})
       when not is_nil(current_command),
       do: noop_tick(state)
 
-  def handle_info(:tick, state = %State{current_command: nil}) do
+  def handle_info(:tick, state = %__MODULE__{current_command: nil}) do
     new_state =
       state
       |> pop_command
@@ -207,36 +163,79 @@ defmodule ZWave.ZStick do
     {:noreply, new_state}
   end
 
-  def noop_tick(state) do
+  def handle_info({:command_timeout, _command}, state), do: {:noreply, state}
+
+  defp next_callback_id(current_callback_id) do
+    rem(current_callback_id + 1, 0xFF)
+    |> max(10)
+  end
+
+  defp handle_message_from_zstick(:sendnak, state) do
+    Logger.debug("RECEIVED #{:sendnak} |> sending NAK")
+    send_msg(state.usb_zstick_pid, <<@nak>>)
+    state
+  end
+
+  defp handle_message_from_zstick(<<@can>>, state) do
+    Logger.debug("RECEIVED CAN")
+    send_msg(state.usb_zstick_pid, <<@can>>)
+
+    if state.current_command do
+      send_msg(state.usb_zstick_pid, state.current_command)
+    end
+
+    state
+  end
+
+  defp handle_message_from_zstick(message, state) do
+    Logger.debug("RECEIVED #{message |> inspect}")
+
+    if message != <<@ack>> do
+      send_msg(state.usb_zstick_pid, <<@ack>>)
+    end
+
+    state = process_message(state, message)
+
+    if ZWave.Msg.required_response?(state.current_command, message) do
+      %__MODULE__{state | current_command: nil}
+    else
+      state
+    end
+  end
+
+  defp exec_command(state = %__MODULE__{current_command: nil}), do: state
+
+  defp exec_command(state) do
+    Process.send_after(
+      self(),
+      {:command_timeout, state.current_command},
+      @command_timeout_interval
+    )
+
+    send_msg(state.usb_zstick_pid, state.current_command)
+
+    if ZWave.Msg.required_response?(state.current_command, nil) do
+      %__MODULE__{state | current_command: nil}
+    else
+      state
+    end
+  end
+
+  defp noop_tick(state) do
     Process.send_after(self(), :tick, @tick_interval)
     {:noreply, state}
   end
 
-  def handle_info({:command_timeout, command}, state = %{current_command: command}) do
-    Logger.error("timeout #{command |> inspect} after #{@command_timeout_interval}")
-
-    if state.current_command.target_node_id,
-      do:
-        send(
-          ZWave.Node.node_name(state.name, state.current_command.target_node_id),
-          {:zstick_send_error, state.current_command}
-        )
-
-    {:noreply, %State{state | current_command: nil}}
+  defp add_command(state, command) do
+    %__MODULE__{state | command_queue: :queue.in(command, state.command_queue)}
   end
 
-  def handle_info({:command_timeout, _command}, state), do: {:noreply, state}
+  defp add_callback_id(state, command = <<_::binary>>), do: {state, command}
+  defp add_callback_id(state, command = %{data: nil}), do: {state, command}
 
-  def add_command(state, command) do
-    %State{state | command_queue: :queue.in(command, state.command_queue)}
-  end
-
-  def add_callback_id(state, command = <<_::binary>>), do: {state, command}
-  def add_callback_id(state, command = %{data: nil}), do: {state, command}
-
-  def add_callback_id(state, command) do
+  defp add_callback_id(state, command) do
     {
-      %State{
+      %__MODULE__{
         state
         | current_callback_id: state.current_callback_id + 1,
           callback_commands:
@@ -246,17 +245,17 @@ defmodule ZWave.ZStick do
     }
   end
 
-  def pop_command(state) do
+  defp pop_command(state) do
     case :queue.out(state.command_queue) do
       {{:value, current_command}, command_queue} ->
-        %State{state | current_command: current_command, command_queue: command_queue}
+        %__MODULE__{state | current_command: current_command, command_queue: command_queue}
 
       {:empty, command_queue} ->
-        %State{state | current_command: nil, command_queue: command_queue}
+        %__MODULE__{state | current_command: nil, command_queue: command_queue}
     end
   end
 
-  def do_init_sequence(state) do
+  defp do_init_sequence(state) do
     state
     |> add_command(<<@nak>>)
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_version})
@@ -266,7 +265,7 @@ defmodule ZWave.ZStick do
     |> add_command(%ZWave.Msg{type: @request, function: @func_id_zw_get_suc_node_id})
   end
 
-  defp send_msg(msg, pid) do
+  defp send_msg(pid, msg) do
     msg
     |> log_maybe
     |> ZWave.Msg.prepare()
@@ -274,20 +273,20 @@ defmodule ZWave.ZStick do
     |> ZStick.UART.write(pid)
   end
 
-  def log_maybe(msg), do: msg
+  defp log_maybe(msg), do: msg
 
-  def log_msg(msg) do
+  defp log_msg(msg) do
     Logger.debug("SENDING  #{msg |> inspect}")
     msg
   end
 
-  def process_message(
-        state = %{controller_node_id: controller_node_id},
-        <<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16),
-          _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16),
-          _api_bitmask::size(256), _checksum>>
-      )
-      when not is_nil(controller_node_id) do
+  defp process_message(
+         state = %{controller_node_id: controller_node_id},
+         <<@sof, _length, @response, @func_id_serial_api_get_capabilities, _api_version::size(16),
+           _manufacturer_id::size(16), _product_type::size(16), _product_id::size(16),
+           _api_bitmask::size(256), _checksum>>
+       )
+       when not is_nil(controller_node_id) do
     Logger.debug("GOT SERIAL API CAPABILITIES")
 
     state
@@ -301,12 +300,12 @@ defmodule ZWave.ZStick do
     })
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8),
-          _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes),
-          _something, _else, _checksum>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @response, @func_id_serial_api_get_init_data, _init_version::size(8),
+           _init_caps::size(8), @num_node_bitfield_bytes, node_bitfield::size(@max_num_nodes),
+           _something, _else, _checksum>>
+       ) do
     Logger.debug("GOT SERIAL API INIT DATA")
     Logger.debug("node bitfield: #{node_bitfield |> inspect}")
 
@@ -316,155 +315,198 @@ defmodule ZWave.ZStick do
     state
   end
 
-  def process_message(
-        state = %{current_command: current_command},
-        msg =
-          <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, capabilities,
-            _frequent_listening, _something, device_classes::size(24), _checksum>>
+  defp process_message(
+         state = %{current_command: current_command},
+         msg =
+           <<@sof, _length, @response, @func_id_zw_get_node_protocol_info, _capabilities,
+             _frequent_listening, _something, _device_classes::size(24), _checksum>>
+       )
+       when not is_nil(current_command) do
+    try do
+      send(
+        ZWave.Node.node_name(state.name, state.current_command.target_node_id),
+        {:message_from_zstick, msg}
       )
-      when not is_nil(current_command) do
-    send(
-      ZWave.Node.node_name(state.name, state.current_command.target_node_id),
-      {:message_from_zstick, msg}
-    )
+    rescue
+      e in ArgumentError ->
+        Logger.debug("exception: #{e}, rescheduling message for 2s")
+        Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+    end
 
     state
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @response, @func_id_zw_get_random, random, _checksum>>
-      ),
-      do: state
+  defp process_message(
+         state,
+         <<@sof, _length, @response, @func_id_zw_get_random, _random, _checksum>>
+       ),
+       do: state
 
-  def process_message(
-        state,
-        <<@sof, _length, @response, @func_id_zw_memory_get_id, _home_id::size(32),
-          controller_node_id, _checksum>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @response, @func_id_zw_memory_get_id, _home_id::size(32),
+           controller_node_id, _checksum>>
+       ) do
     Logger.debug("controller node id: #{controller_node_id |> inspect}")
-    %State{state | controller_node_id: controller_node_id}
+    %__MODULE__{state | controller_node_id: controller_node_id}
   end
 
-  def process_message(state, <<@ack>>), do: state
+  defp process_message(state, <<@ack>>), do: state
 
-  def process_message(
-        state = %{current_command: current_command},
-        <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>
-      )
-      when not is_nil(current_command) do
+  defp process_message(
+         state = %{current_command: current_command},
+         msg = <<@sof, _length, @response, @func_id_zw_send_data, 0, _rest::binary>>
+       )
+       when not is_nil(current_command) do
     Logger.error("ERROR - #{state.current_command.target_node_id |> inspect}")
 
-    send(
-      ZWave.Node.node_name(state.name, state.current_command.target_node_id),
-      {:zstick_send_error, state.current_command}
-    )
+    try do
+      send(
+        ZWave.Node.node_name(state.name, state.current_command.target_node_id),
+        {:zstick_send_error, state.current_command}
+      )
+    rescue
+      e in ArgumentError ->
+        Logger.debug("exception: #{e}, rescheduling message for 2s")
+        Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+    end
 
     %{state | current_command: nil}
   end
 
-  def process_message(
-        state = %{current_command: current_command},
-        msg = <<@sof, _length, @request, @func_id_zw_send_data, _callback_id, 1, _rest::binary>>
-      )
-      when not is_nil(current_command) do
-    if state.current_command.target_node_id,
-      do:
+  defp process_message(
+         state = %{current_command: current_command},
+         msg = <<@sof, _length, @request, @func_id_zw_send_data, _callback_id, 1, _rest::binary>>
+       )
+       when not is_nil(current_command) do
+    if state.current_command.target_node_id do
+      try do
         send(
           ZWave.Node.node_name(state.name, state.current_command.target_node_id),
           {:zstick_send_error, state.current_command}
         )
+      rescue
+        e in ArgumentError ->
+          Logger.debug("exception: #{e}, rescheduling message for 2s")
+          Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+      end
+    end
 
-    %State{state | current_command: nil}
+    %__MODULE__{state | current_command: nil}
   end
 
-  def process_message(
-        state,
-        msg = <<@sof, _length, @request, @func_id_zw_send_data, _callback_id, 1, _rest::binary>>
-      ) do
+  defp process_message(
+         state,
+         msg = <<@sof, _length, @request, @func_id_zw_send_data, _callback_id, 1, _rest::binary>>
+       ) do
     Logger.error("MESSAGE NOT SENT (#{msg |> inspect})")
     state
   end
 
-  def process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 1, _checksum>>) do
+  defp process_message(state, <<@sof, _length, @response, @func_id_zw_send_data, 1, _checksum>>) do
     Logger.debug("Message delivered to Z-Wave stack")
     state
   end
 
-  def process_message(
-        state = %{current_command: current_command},
-        msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>
-      )
-      when not is_nil(current_command) do
-    if current_command.target_node_id,
-      do:
+  defp process_message(
+         state = %{current_command: current_command},
+         msg = <<@sof, _length, _req_res, @func_id_zw_send_data, _rest::binary>>
+       )
+       when not is_nil(current_command) do
+    if current_command.target_node_id do
+      try do
         send(
           ZWave.Node.node_name(state.name, state.current_command.target_node_id),
           {:message_from_zstick, msg}
         )
+      rescue
+        e in ArgumentError ->
+          Logger.debug("exception: #{e}, rescheduling message for 2s")
+          Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+      end
+    end
 
     state
   end
 
-  def process_message(
-        state = %{current_command: current_command},
-        <<@sof, _length, @response, @func_id_application_command_handler, 0, _rest::binary>>
-      )
-      when not is_nil(current_command) do
+  defp process_message(
+         state = %{current_command: current_command},
+         msg =
+           <<@sof, _length, @response, @func_id_application_command_handler, 0, _rest::binary>>
+       )
+       when not is_nil(current_command) do
     Logger.error("ERROR - #{state.current_command.target_node_id |> inspect}")
 
-    send(
-      ZWave.Node.node_name(state.name, state.current_command.target_node_id),
-      {:zstick_send_error, state.current_command}
-    )
+    try do
+      send(
+        ZWave.Node.node_name(state.name, state.current_command.target_node_id),
+        {:zstick_send_error, state.current_command}
+      )
+    rescue
+      e in ArgumentError ->
+        Logger.debug("exception: #{e}, rescheduling message for 2s")
+        Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+    end
 
     %{state | current_command: nil}
   end
 
-  def process_message(
-        state = %{current_command: current_command},
-        msg =
-          <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, 1,
-            _rest::binary>>
-      )
-      when not is_nil(current_command) do
-    if state.current_command.target_node_id,
-      do:
+  defp process_message(
+         state = %{current_command: current_command},
+         msg =
+           <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, 1,
+             _rest::binary>>
+       )
+       when not is_nil(current_command) do
+    if state.current_command.target_node_id do
+      try do
         send(
           ZWave.Node.node_name(state.name, state.current_command.target_node_id),
           {:zstick_send_error, state.current_command}
         )
+      rescue
+        e in ArgumentError ->
+          Logger.debug("exception: #{e}, rescheduling message for 2s")
+          Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+      end
+    end
 
-    %State{state | current_command: nil}
+    %__MODULE__{state | current_command: nil}
   end
 
-  def process_message(
-        state,
-        msg =
-          <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id,
-            _sublength, command_class, _rest::binary>>
-      ) do
-    send(ZWave.Node.node_name(state.name, node_id), {:message_from_zstick, msg})
+  defp process_message(
+         state,
+         msg =
+           <<@sof, _length, @request, @func_id_application_command_handler, _callback_id, node_id,
+             _sublength, _command_class, _rest::binary>>
+       ) do
+    try do
+      send(ZWave.Node.node_name(state.name, node_id), {:message_from_zstick, msg})
+    rescue
+      e in ArgumentError ->
+        Logger.debug("exception: #{e}, rescheduling message for 2s")
+        Process.send_after(self(), {:message_from_zstick, msg}, 2000)
+    end
+
     state
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @response, @func_id_zw_set_suc_node_id, 1, _checksum>>
+       ) do
     Logger.debug("SUC Node id successfully set")
     state
   end
 
-  def process_message(
-        state = %{controller_node_id: controller_node_id},
-        <<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>
-      )
-      when not is_nil(controller_node_id) do
+  defp process_message(
+         state = %{controller_node_id: controller_node_id},
+         <<@sof, _length, @response, @func_id_zw_get_suc_node_id, 0, _checksum>>
+       )
+       when not is_nil(controller_node_id) do
     Logger.debug("Setting ourselves as SIS")
 
-    state
-    |> add_command(%ZWave.Msg{
+    add_command(state, %ZWave.Msg{
       type: @request,
       function: @func_id_zw_enable_suc,
       data: [1, @suc_func_nodeid_server]
@@ -477,18 +519,18 @@ defmodule ZWave.ZStick do
     })
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @response, @func_id_zw_get_suc_node_id, _suc_node_id, _checksum>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @response, @func_id_zw_get_suc_node_id, _suc_node_id, _checksum>>
+       ) do
     state
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id,
-          @add_node_status_failed, _rest::binary>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id,
+           @add_node_status_failed, _rest::binary>>
+       ) do
     use Bitwise
 
     state
@@ -499,34 +541,34 @@ defmodule ZWave.ZStick do
     })
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id,
-          @add_node_status_adding_slave, node_id, _rest::binary>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @request, @func_id_zw_add_node_to_network, _callback_id,
+           @add_node_status_adding_slave, node_id, _rest::binary>>
+       ) do
     ZWave.Node.start(state.name, node_id)
     state
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id,
-          @remove_node_status_removing_slave, 0, _rest::binary>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id,
+           @remove_node_status_removing_slave, 0, _rest::binary>>
+       ) do
     Logger.debug("non-connected device removed")
     state
   end
 
-  def process_message(
-        state,
-        <<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id,
-          @remove_node_status_removing_slave, node_id, _rest::binary>>
-      ) do
+  defp process_message(
+         state,
+         <<@sof, _length, @request, @func_id_zw_remove_node_from_network, _callback_id,
+           @remove_node_status_removing_slave, node_id, _rest::binary>>
+       ) do
     ZWave.Node.stop(state.name, node_id)
     state
   end
 
-  def process_message(state, message) do
+  defp process_message(state, message) do
     Logger.error("UNKNOWN MESSAGE: #{message |> inspect}")
     state
   end

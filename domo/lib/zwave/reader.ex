@@ -13,7 +13,8 @@ defmodule ZStick.Reader do
   end
 
   # ms
-  @read_wait 20
+  # This can't be too high, since it blocks the UART port for up to this long. This means that any `write` to the UART device could also be waiting for this long. This is a potential performance issue and can cause timeouts elsewhere.
+  @read_wait 100
 
   def read(usb_zstick_pid, zstick_pid, msg_buffer \\ <<>>)
 
